@@ -10,7 +10,7 @@ class Settings(BaseSettings):
         env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
-        case_sensitive=True,
+        case_sensitive=False,
     )
 
     database_url: str = "postgresql+psycopg://support:support@localhost:5432/support_agent"

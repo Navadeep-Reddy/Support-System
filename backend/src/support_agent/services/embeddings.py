@@ -1,6 +1,7 @@
 from math import isfinite
 
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
+from langsmith import traceable
 
 from support_agent.core.config import Settings, get_settings
 
@@ -19,10 +20,12 @@ class EmbeddingService:
             truncate="NONE",
         )
 
+    @traceable(name="nvidia_embed_passages", run_type="embedding")
     def embed_passages(self, texts: list[str]) -> list[list[float]]:
         vectors = self._client.embed_documents(texts)
         return [self._validate_vector(vector) for vector in vectors]
 
+    @traceable(name="nvidia_embed_query", run_type="embedding")
     def embed_query(self, text: str) -> list[float]:
         return self._validate_vector(self._client.embed_query(text))
 
