@@ -6,6 +6,16 @@ PostgreSQL checkpointing is the selected approval-resume approach. `scripts/chec
 
 The configured NVIDIA chat model is `nvidia/nemotron-3.5-super-vl-120b-a12b` ([NVIDIA model page](https://build.nvidia.com/nvidia/nemotron-3.5-super-vl-120b-a12b)); NVIDIA documents tool calling for this model. The configured embedding model is `nvidia/nemotron-3.5-embed-1b`. Its hosted endpoint requires `input_type="passage"` for indexing and `input_type="query"` for retrieval, and returns native 2,048-dimensional vectors. The embedding service validates vector size and finite values and rejects oversized inputs rather than silently truncating them. Stored vectors must be rebuilt if the embedding model changes. NVIDIA marks the previous `nvidia/llama-nemotron-embed-1b-v2` hosted endpoint deprecated. See the model and API links in the root `SPEC.md`.
 
+Initialize the configured application database and seed the fictional plans, demo customers, subscriptions, and payments (both commands are repeatable and do not drop data):
+
+```bash
+cd backend
+uv run python -m scripts.init_db
+uv run python -m scripts.seed_data
+```
+
+The seed commands use `DATABASE_URL`; tests use `TEST_DATABASE_URL` only. Knowledge articles and indexed chunks are seeded with the BE-04 indexing path.
+
 The NVIDIA API key is required for real model and embedding calls. Automatic LangSmith tracing is wired into FastAPI startup: when `LANGSMITH_TRACING=true` and a LangSmith API key is configured, supported LangChain/LangGraph runs are traced without per-call setup. The embedding service is explicitly traced as well. Tracing remains disabled in the example configuration until opted in; enabling it without `LANGSMITH_API_KEY` is a configuration error.
 
 ## Bootstrap smoke-check results
@@ -24,4 +34,4 @@ Verified with the configured NVIDIA and LangSmith accounts:
 | FastAPI startup, PostgreSQL startup probe, and `/health` | Passed | — |
 | Safe request-validation and unexpected-error envelopes | Passed | — |
 
-The focused backend suite currently passes 9 tests; Ruff and Python compilation checks pass. These are provider/bootstrap checks, not the eight application evaluation cases. The observed API timings are a single local smoke run, not performance benchmarks.
+The focused backend suite currently passes 11 tests; Ruff and Python compilation checks pass. These are provider/bootstrap checks, not the eight application evaluation cases. The observed API timings are a single local smoke run, not performance benchmarks.

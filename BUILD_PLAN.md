@@ -34,10 +34,11 @@ Depends on S-01, S-02.
 
 Depends on BE-01 (database connection); provider verification may proceed in parallel.
 
-- [ ] Define the 12 SQLAlchemy application models: `customers`, `plans`, `subscriptions`, `payments`, `password_reset_requests`, `knowledge_articles`, `knowledge_chunks`, `conversations`, `messages`, `feedback`, `agent_runs`, `action_approvals`.
-- [ ] Add UUID keys, ownership foreign keys, explicit statuses, UTC timestamps, decimal money, `Vector(2048)`, useful indexes and uniqueness constraints. In particular, enforce one subscription per customer, one feedback record per customer/message, and one reset request per action ID. Add partial unique indexes on `agent_runs(conversation_id)` where status is `running` or `waiting_for_approval`, and on `action_approvals(run_id)` where status is `pending`; handle concurrent conflicts safely.
-- [ ] Implement initialization (`CREATE EXTENSION` as appropriate, then `create_all()`) and repeatable seed scripts without deleting existing data. Keep library-managed checkpoint tables separate from ORM models.
-- [ ] Seed Free ($0), Pro ($15) and Business ($39) monthly plans; Alex (active Pro, successful $15 initial payment) and Taylor (active Business, failed $39 renewal, insufficient funds). Use predictable handles and consistent relative dates.
+- [x] Define the 12 SQLAlchemy application models: `customers`, `plans`, `subscriptions`, `payments`, `password_reset_requests`, `knowledge_articles`, `knowledge_chunks`, `conversations`, `messages`, `feedback`, `agent_runs`, `action_approvals`.
+- [x] Add UUID keys, ownership foreign keys, explicit statuses, UTC timestamps, decimal money, `Vector(2048)`, useful indexes and uniqueness constraints. In particular, enforce one subscription per customer, one feedback record per customer/message, and one reset request per action ID. Add partial unique indexes on `agent_runs(conversation_id)` where status is `running` or `waiting_for_approval`, and on `action_approvals(run_id)` where status is `pending`.
+- [ ] Map uniqueness and partial-index conflicts to typed application/HTTP conflict outcomes when implementing run reservation and approval APIs (BE-05/BE-07).
+- [x] Implement initialization (`CREATE EXTENSION` as appropriate, then `create_all()`) and repeatable seed scripts without deleting existing data. Keep library-managed checkpoint tables separate from ORM models.
+- [x] Seed Free ($0), Pro ($15) and Business ($39) monthly plans; Alex (active Pro, successful $15 initial payment) and Taylor (active Business, failed $39 renewal, insufficient funds). Use predictable handles and consistent relative dates.
 
 **Done when:** initialization and seeding can run again without duplication or data loss, both profiles have distinct correct records, and constraints are verifiable.
 
@@ -122,9 +123,9 @@ Depends on S-01, S-02.
 
 - [x] Initialize React + TypeScript + Vite with npm, Tailwind CSS and shadcn/ui. Set up a simple layout and routes for demo login and chat.
 - [x] Define shared TypeScript wire types from `API_CONTRACT.md`, including messages, citations, approval cards, feedback, run status, history and errors.
-- [x] Implement a centralized API client using `VITE_API_BASE_URL`, credentialed requests, JSON parsing, 204 handling and typed error extraction. Use stable IDs for message upserts; no provider credentials in frontend configuration.
+- [ ] Implement a centralized API client using `VITE_API_BASE_URL`, credentialed requests, JSON parsing, 204 handling and typed error extraction. Use stable IDs for message upserts; no provider credentials in frontend configuration.
 
-**Done when:** the frontend starts and builds, and API calls/fixtures conform to the shared contract. Verified with `npm run build`; local preview fixtures use UUID-shaped IDs and remain separate from the HTTP client. Live API integration is deferred to the integration workstream.
+**Done when:** the frontend starts and builds, and API calls/fixtures conform to the shared contract. `npm run build` passes; the HTTP client exists and preview fixtures use UUID-shaped IDs. Stable-ID upserts and live API integration remain outstanding.
 
 ### FE-02 — Demo login and session navigation
 
