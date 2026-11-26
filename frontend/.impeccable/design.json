@@ -12,8 +12,8 @@
     "breakpoints": [{ "name": "account-collapse", "value": "1260px" }, { "name": "navigation-drawer", "value": "900px" }, { "name": "stacked-workspace", "value": "680px" }]
   },
   "components": [
-    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "A clear primary action.", "html": "<button class=\"ds-primary\">Confirm</button>", "css": ".ds-primary{background:#253e5a;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 14px sans-serif}.ds-primary:hover{background:#172c43}.ds-primary:focus-visible{outline:3px solid #758c2c;outline-offset:2px}" },
-    { "name": "Selected navigation", "kind": "nav", "description": "The current workspace destination.", "html": "<button class=\"ds-nav\">Conversations</button>", "css": ".ds-nav{background:#d9e875;color:#253e5a;border:0;border-radius:10px;padding:12px;font:700 13px sans-serif}.ds-nav:focus-visible{outline:3px solid #758c2c;outline-offset:2px}" }
+    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "A clear primary action.", "html": "<button class=\"ds-primary\">Confirm</button>", "css": ".ds-primary{background:#253e5a;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 14px sans-serif}.ds-primary:hover{background:#172c43}.ds-primary:focus-visible{outline:3px solid #8a5a20;outline-offset:2px}" },
+    { "name": "Selected navigation", "kind": "nav", "description": "The current workspace destination.", "html": "<button class=\"ds-nav\">Conversations</button>", "css": ".ds-nav{background:#e8a84a;color:#253e5a;border:0;border-radius:10px;padding:12px;font:700 13px sans-serif}.ds-nav:focus-visible{outline:3px solid #8a5a20;outline-offset:2px}" }
   ],
   "narrative": {
     "northStar": "The Community Noticeboard",

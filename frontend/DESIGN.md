@@ -4,7 +4,7 @@ description: A clear community noticeboard for a fictional support experience.
 colors:
   primary: "#253E5A"
   primary-hover: "#172C43"
-  highlight: "#D9E875"
+  highlight: "#e8a84a"
   neutral-bg: "#EDF3F2"
   surface: "#FFFFFF"
   rail: "#E1EEEB"
@@ -62,7 +62,7 @@ components:
 
 **Creative North Star: "The Community Noticeboard"**
 
-A deep blue navigation shell frames cool, pale support surfaces. White conversation and reading areas stay visually central; lime highlights the selected destination and lends emphasis to approval states. The result is distinctive but familiar to operate.
+A deep blue navigation shell frames cool, pale support surfaces. White conversation and reading areas stay visually central; amber highlights the selected destination and lends emphasis to approval states. The result is distinctive but familiar to operate.
 
 **Key Characteristics:**
 - Deep blue navigation and primary controls
@@ -72,7 +72,7 @@ A deep blue navigation shell frames cool, pale support surfaces. White conversat
 
 ## Colors
 
-Deep blue provides the main ink, navigation, and primary controls. Cool pale greens separate supporting areas from white working surfaces. Lime marks the selected navigation and supports the framed approval treatment. Semantic green, amber, and red communicate success, waiting, and failure with explicit text.
+Deep blue provides the main ink, navigation, and primary controls. Cool pale greens separate supporting areas from white working surfaces. Amber marks the selected navigation and supports the framed approval treatment. Semantic green, amber, and red communicate success, waiting, and failure with explicit text.
 
 ## Typography
 
@@ -92,7 +92,7 @@ Panels and controls use modest rounded corners and fine borders. Status badges r
 
 ## Components
 
-Primary buttons use deep blue with white text; secondary buttons use a white background and border. Focus has a visible olive outline. The selected navigation item uses a lime background and dark text. Approval cards use a full green border, explanatory text, and explicit controls; a local approval is not represented as execution. Source labels remain separate from assistant content. Raw Markdown HTML is skipped.
+Primary buttons use deep blue with white text; secondary buttons use a white background and border. Focus has a visible amber outline. The selected navigation item uses an amber background and dark text. Approval cards use a full green border, explanatory text, and explicit controls; a local approval is not represented as execution. Source labels remain separate from assistant content. Raw Markdown HTML is skipped.
 
 ## Do's and Don'ts
 

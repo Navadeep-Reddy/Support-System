@@ -23,7 +23,7 @@ Use only the contract's fictional profile data and truthful API states. Distingu
 
 THESIS: A community noticeboard makes the next support step unmistakable while keeping the conversation central.
 
-OWN-WORLD: Deep blue navigation, cool pale blue-green grounds, crisp white working surfaces, readable humanist typography, and a bright lime highlight for selected navigation and important decisions.
+OWN-WORLD: Deep blue navigation, cool pale blue-green grounds, crisp white working surfaces, readable humanist typography, and a warm amber highlight for selected navigation and important decisions.
 
 STORY: The selected demo profile opens a familiar support workspace; the customer reads a grounded answer, checks its cited source, and can decide explicitly on any simulated action.
 

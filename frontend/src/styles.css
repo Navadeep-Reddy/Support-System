@@ -58,7 +58,7 @@ time, .tabular { font-variant-numeric: tabular-nums; }
 .sidebar-top { display: flex; align-items: center; justify-content: space-between; margin: 0 5px 34px; }
 .brand-mark { display: inline-flex; align-items: center; gap: 9px; color: var(--ink); text-decoration: none; font-size: 19px; font-weight: 850; letter-spacing: -.055em; }
 .brand-support { display: block; margin-top: -5px; color: var(--muted); font-size: 10px; line-height: 1.2; font-weight: 650; letter-spacing: .075em; text-transform: uppercase; }
-.brand-symbol { display: grid; flex: 0 0 auto; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #d9e875; color: #253e5a; }
+.brand-symbol { display: grid; flex: 0 0 auto; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #e8a84a; color: #253e5a; }
 .sidebar-label { margin: 0 8px 9px; color: #88796e; font-size: 10px; font-weight: 850; letter-spacing: .13em; }
 .sidebar-profile { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; text-align: left; border: 1px solid transparent; border-radius: 13px; background: rgb(255 255 255 / 58%); cursor: pointer; transition: background .18s ease, border-color .18s ease; }
 .sidebar-profile:hover { border-color: var(--border); background: #fff; }
@@ -539,8 +539,8 @@ time, .tabular { font-variant-numeric: tabular-nums; }
   --shadow-soft: 0 5px 18px rgb(32 63 70 / 5%);
   --shadow-card: 0 12px 28px rgb(32 63 70 / 12%);
 }
-button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: #758c2c; }
-::selection { background: #d9e875; color: #253e5a; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: #8a5a20; }
+::selection { background: #e8a84a; color: #253e5a; }
 ::-webkit-scrollbar-thumb { background-color: #b5c9c5; }
 ::-webkit-scrollbar-thumb:hover { background-color: #819f9a; }
 input::placeholder, textarea::placeholder { color: #647b7e; }
@@ -552,13 +552,13 @@ input::placeholder, textarea::placeholder { color: #647b7e; }
 .sidebar-profile small, .sidebar-profile > svg { color: #d3e0e3; }
 .nav-item, .nav-item svg { color: #e0ecee; }
 .nav-item:hover { background: #36546c; color: #fff; }
-.nav-item.active { color: #253e5a; background: #d9e875; box-shadow: none; }
+.nav-item.active { color: #253e5a; background: #e8a84a; box-shadow: none; }
 .nav-item.active svg { color: #253e5a; }
-.nav-count { background: #c5d65c; color: #253e5a; }
+.nav-count { background: #d89030; color: #253e5a; }
 .sidebar-help { background: #36546c; border-color: #536f80; color: #fff; }
 .sidebar-help:hover { background: #426179; border-color: #91a9b5; }
 .sidebar-help small, .sidebar-help > svg { color: #d3e0e3; }
-.help-icon { color: #253e5a; background: #d9e875; }
+.help-icon { color: #253e5a; background: #e8a84a; }
 .close-sidebar { color: #fff; }
 .topbar { border-color: var(--border); }
 .preview-pill { color: #344e55; border-color: #bcd1cd; background: #f9fcfb; }
@@ -607,13 +607,13 @@ input::placeholder, textarea::placeholder { color: #647b7e; }
 .login-story { background: #253e5a; color: #fff; }
 .login-story .brand-mark { color: #fff; }
 .login-story .brand-support, .login-description, .login-proof, .login-footnote { color: #d3e2e5; }
-.login-overline { color: #d9e875; }
+.login-overline { color: #e8a84a; }
 .eyebrow { color: #526a70; }
-.proof-check { background: #d9e875; color: #253e5a; }
+.proof-check { background: #e8a84a; color: #253e5a; }
 .profile-option { border-color: #cfdedb; border-radius: 8px; }
 .profile-option:hover { border-color: #779c94; }
 .profile-option.is-selected { border-color: #253e5a; background: #edf4f2; box-shadow: 0 0 0 1px #253e5a; }
-.profile-avatar, .avatar { color: #253e5a; background: #d9e875; }
+.profile-avatar, .avatar { color: #253e5a; background: #e8a84a; }
 .avatar-lilac { color: #253e5a; background: #c6e2df; }
 .login-safety, .login-bottom { color: #526a70; }
 .article-body, .article-body .markdown-content h1, .article-body .markdown-content h2, .article-body .markdown-content h3 { color: #253e5a; }
