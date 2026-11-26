@@ -6,7 +6,7 @@ This document defines the frontend/backend interface for the scope in `SPEC.md`.
 
 - Base URL: `http://localhost:8000` in local development; configure the frontend through `VITE_API_BASE_URL`. Paths below are relative to this URL, without an additional prefix.
 - JSON request and response bodies use `snake_case`. Requests with a body use `Content-Type: application/json`. IDs are UUID strings. Timestamps are ISO 8601 UTC; money is serialized as a decimal string, e.g. `"15.00"`, with an explicit currency.
-- Non-streaming HTTP. The chat endpoint returns when the graph completes, fails or pauses for approval; no connection remains open awaiting a customer decision.
+- Chat supports both a non-streaming HTTP endpoint and an NDJSON streaming endpoint. Both finish when the graph completes, fails or pauses for approval; no connection remains open awaiting a customer decision.
 - Use a backend-controlled demo session (recommended transport: signed, HTTP-only session cookie). Resolve customer identity on the server for every protected endpoint. Frontend sends credentials on requests; configure CORS for the explicit frontend origin (default `http://localhost:5173`), not a wildcard. Use local HTTP cookie settings in development; use HTTPS and secure cookies in a real deployment. The signing secret stays on the backend. Demo selection is not real authentication; no passwords or registration are required.
 - Customer listing, customer login and entry to the separate knowledge-admin demo session are public; logout is safe to repeat. Knowledge management requires that demo-admin session, not a customer session. Anyone can enter it: it is not production authentication or RBAC.
 - Do not accept `customer_id`, `thread_id`, raw graph state or tool execution parameters from the client except the explicit demo profile selection at login. Scope conversations, messages, feedback and approvals to the session owner. Return 404 for a nonexistent or other customer's resource.
@@ -153,7 +153,19 @@ Example completed response (illustrative UUIDs):
 }
 ```
 
-If a network request times out, reload history before submitting again. Do not automatically resend a chat turn. Concurrent submissions to the same conversation return 409. No streaming, websockets or background job service is needed.
+### POST `/conversations/{id}/chat/stream`
+
+Accepts the same request and performs the same ownership, context and run-reservation checks as the non-streaming endpoint. Errors before reservation retain ordinary HTTP status codes. A successful response is `application/x-ndjson`; each newline-delimited JSON event is one of:
+
+- `{"type":"started","run_id":"..."}`: the user message and run are committed.
+- `{"type":"delta","text":"..."}`: append provisional assistant text. Explicit model reasoning is not emitted.
+- `{"type":"reset","text":""}`: discard provisional text when a model call is retried or produces a tool call.
+- `{"type":"done","turn":TurnResponse}`: replace provisional text with the authoritative persisted messages, citations, and any approval card.
+- `{"type":"error","message":"..."}`: the stream could not finish normally; reload history.
+
+The server completes an accepted run even if the browser disconnects. Partial text is not persisted and may be revised or discarded; only the final `TurnResponse` and history are authoritative. Approval cards and action outcomes come only from validated persisted backend state. The approval decision endpoint remains non-streaming.
+
+If a network request times out, reload history before submitting again; the frontend polls a still-running turn for up to two minutes. Do not automatically resend a chat turn. Concurrent submissions to the same conversation return 409. No WebSocket or separate background job service is needed.
 
 ## 6. Password-reset approval
 

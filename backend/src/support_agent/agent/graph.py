@@ -11,7 +11,14 @@ from uuid import UUID
 
 import aiohttp
 import httpx
-from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
+    BaseMessage,
+    SystemMessage,
+    ToolMessage,
+    message_chunk_to_message,
+)
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from pydantic import ValidationError
@@ -91,8 +98,52 @@ def _failure(code: str, message: str, retryable: bool = False) -> ToolResult[Any
 
 def _as_text(message: AIMessage) -> str:
     if isinstance(message.content, str):
-        return message.content
-    return "\n".join(part.get("text", "") for part in message.content if isinstance(part, dict))
+        text = message.content
+    else:
+        text = "\n".join(
+            part.get("text", "")
+            for part in message.content
+            if isinstance(part, dict) and part.get("type") == "text"
+        )
+    return re.sub(r"<think>.*?(?:</think>|$)", "", text, flags=re.DOTALL | re.IGNORECASE)
+
+
+class VisibleText:
+    """Suppress explicit reasoning tags, including tags split across chunks."""
+
+    def __init__(self) -> None:
+        self.buffer = ""
+        self.thinking = False
+
+    def push(self, text: str, *, final: bool = False) -> str:
+        self.buffer += text
+        output = ""
+        while self.buffer:
+            tag = "</think>" if self.thinking else "<think>"
+            index = self.buffer.lower().find(tag)
+            if index >= 0:
+                if not self.thinking:
+                    output += self.buffer[:index]
+                self.buffer = self.buffer[index + len(tag) :]
+                self.thinking = not self.thinking
+            else:
+                keep = (
+                    0
+                    if final
+                    else max(
+                        (
+                            i
+                            for i in range(1, min(len(tag) - 1, len(self.buffer)) + 1)
+                            if tag.startswith(self.buffer[-i:].lower())
+                        ),
+                        default=0,
+                    )
+                )
+                if not self.thinking:
+                    output += self.buffer[:-keep] if keep else self.buffer
+                self.buffer = self.buffer[-keep:] if keep else ""
+                break
+        return output
 
 
 def build_graph(
@@ -102,6 +153,7 @@ def build_graph(
     resolve_approval: ResolveApproval,
     settings: Settings,
     checkpointer: Any,
+    stream_event: Callable[[str, str], None] | None = None,
 ):
     """Build a graph with backend-bound tools and a caller-supplied durable checkpointer.
 
@@ -131,9 +183,41 @@ def build_graph(
                 max(0.0, state["active_deadline"] - time.monotonic()),
             )
             async with asyncio.timeout(timeout):
-                response = await model.ainvoke(
-                    [SystemMessage(content=SYSTEM_PROMPT), *state["messages"]]
-                )
+                model_messages = [SystemMessage(content=SYSTEM_PROMPT), *state["messages"]]
+                if stream_event is None:
+                    response = await model.ainvoke(model_messages)
+                else:
+                    stream_event("reset", "")
+                    combined: AIMessageChunk | None = None
+                    visible = VisibleText()
+                    has_tool_call = False
+                    async for chunk in model.astream(model_messages):
+                        if not isinstance(chunk, AIMessageChunk):
+                            raise TypeError("Model did not return an assistant chunk")
+                        combined = chunk if combined is None else combined + chunk
+                        if chunk.tool_call_chunks or chunk.tool_calls or chunk.invalid_tool_calls:
+                            if not has_tool_call:
+                                stream_event("reset", "")
+                            has_tool_call = True
+                        if not has_tool_call:
+                            if isinstance(chunk.content, str):
+                                text = chunk.content
+                            else:
+                                text = "".join(
+                                    part.get("text", "")
+                                    for part in chunk.content
+                                    if isinstance(part, dict) and part.get("type") == "text"
+                                )
+                            text = visible.push(text)
+                            if text:
+                                stream_event("delta", text)
+                    if not has_tool_call:
+                        tail = visible.push("", final=True)
+                        if tail:
+                            stream_event("delta", tail)
+                    if combined is None:
+                        raise TypeError("Model returned no assistant chunks")
+                    response = message_chunk_to_message(combined)
             if not isinstance(response, AIMessage):
                 raise TypeError("Model did not return an assistant message")
             remaining = _remaining(state, started)
@@ -164,6 +248,8 @@ def build_graph(
                 "retries": 0,
             }
         except Exception as exc:
+            if stream_event is not None:
+                stream_event("reset", "")
             remaining = _remaining(state, started)
             retry = (
                 _transient(exc)

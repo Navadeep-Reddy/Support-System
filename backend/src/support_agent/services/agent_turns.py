@@ -7,7 +7,7 @@ must validate and record a decision (and execute an approved reset) before resum
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 from uuid import UUID, uuid4
@@ -152,7 +152,12 @@ class AgentTurns:
                 ),
             )
 
-    def _graph(self, customer_id: UUID, run_id: UUID):
+    def _graph(
+        self,
+        customer_id: UUID,
+        run_id: UUID,
+        stream_event: Callable[[str, str], None] | None = None,
+    ):
         async def execute(name: str, arguments: dict[str, Any]) -> ToolResult[Any]:
             return await asyncio.to_thread(self._execute, customer_id, name, arguments)
 
@@ -175,7 +180,9 @@ class AgentTurns:
         async def resolve(payload: dict[str, Any]) -> ToolResult[Any]:
             return await asyncio.to_thread(self._resolve, customer_id, run_id, payload)
 
-        return build_graph(self.model, execute, prepare, resolve, self.settings, self.checkpointer)
+        return build_graph(
+            self.model, execute, prepare, resolve, self.settings, self.checkpointer, stream_event
+        )
 
     def _finish(
         self,
@@ -227,7 +234,10 @@ class AgentTurns:
             if deadline is not None and time.monotonic() >= deadline:
                 raise TimeoutError("Finalization exceeded the active deadline")
 
-    async def start(self, customer_id: UUID, conversation_id: UUID, message: str) -> dict[str, Any]:
+    def prepare_start(
+        self, customer_id: UUID, conversation_id: UUID, message: str
+    ) -> dict[str, Any]:
+        """Reserve and persist the turn before a streaming response starts."""
         started = time.monotonic()
         with self.sessions.begin() as session:
             service = ConversationService(session)
@@ -248,8 +258,26 @@ class AgentTurns:
             0, state["remaining_seconds"] - (time.monotonic() - started)
         )
         state["active_deadline"] = started + self.settings.active_turn_deadline_seconds
+        return state
+
+    async def start(self, customer_id: UUID, conversation_id: UUID, message: str) -> dict[str, Any]:
+        state = self.prepare_start(customer_id, conversation_id, message)
+        return await self.start_prepared(customer_id, conversation_id, state)
+
+    async def start_prepared(
+        self,
+        customer_id: UUID,
+        conversation_id: UUID,
+        state: dict[str, Any],
+        stream_event: Callable[[str, str], None] | None = None,
+    ) -> dict[str, Any]:
+        run_id = UUID(state["run_id"])
+        budget = min(
+            state["remaining_seconds"], max(0.0, state["active_deadline"] - time.monotonic())
+        )
+        graph = self._graph(customer_id, run_id, stream_event) if stream_event else None
         return await self._invoke(
-            customer_id, run.id, state, state["remaining_seconds"], conversation_id=conversation_id
+            customer_id, run_id, state, budget, graph=graph, conversation_id=conversation_id
         )
 
     async def decision_deadline(

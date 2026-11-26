@@ -1,5 +1,11 @@
 # AI Support Agent — Build Plan
 
+## Chat streaming follow-up
+
+- [x] Show submitted customer messages immediately, including the first message of a new conversation, while preserving recovery from failed or uncertain submissions.
+- [x] Stream generated assistant text to the frontend while retaining ownership checks, run limits, approval gates and authoritative persisted history.
+- [x] Verify incremental delivery, failure/disconnection recovery, profile switching, approvals and responsive presentation; document the streaming contract. Verified with test-database provider streams and disconnect recovery, controlled approval/failure tests, and desktop/mobile browser checks.
+
 ## How to use this plan
 
 Implement the reduced scope defined in `SPEC.md`, following the wire contracts in `API_CONTRACT.md`. Do not implement deferred features. This plan is a development checklist, not evidence that any feature or test has already been completed.
@@ -111,7 +117,7 @@ Depends on BE-05, BE-06 and the persistence choice in BE-01.
 Applies throughout backend work; final verification depends on BE-01 through BE-07.
 
 - [x] Make LangSmith tracing optional and disabled by default; the application must run without a LangSmith key. When enabled, trace with run/conversation correlation, model/tool/retrieval events, errors, latency and provider usage when available. Exclude credentials and unnecessary fields from traces. Use standard logging for startup, lifecycle, failures, retries, approvals and indexing errors.
-- [x] Verify all 17 contracted endpoints, typed response models, safe HTTP error envelope, correct status codes and generated `/docs` and `/openapi.json`. Do not expose raw exceptions, SQL, secrets or checkpoints.
+- [x] Verify all 18 contracted endpoints, typed response models, safe HTTP error envelope, correct status codes and generated `/docs` and `/openapi.json`. Do not expose raw exceptions, SQL, secrets or checkpoints.
 - [x] Add focused Pytest tests with mocked providers and isolated fixtures: ownership (including approvals), no mutation before approval or after rejection, duplicate execution, KB update/delete consistency including embedding failure, and error/limit handling. Verify deadline expiry and startup recovery, including preservation of committed results and waiting approvals; test both partial unique indexes under concurrency. Add history/feedback and resume checks where practical. Run tests only against Docker's `support_agent_test` database; never reset or modify the demo database for tests.
 - [x] Run the backend test suite, fix critical failures and record actual results. Keep any known limitation visible in the documentation.
 
@@ -150,7 +156,7 @@ Depends on FE-01; live integration needs BE-03.
 Depends on FE-01, FE-02; live integration needs BE-05, BE-07.
 
 - [x] Build conversation list, new conversation action and history reopening. Render chronological user, assistant and action messages; restore complete persisted history on reload.
-- [x] Implement composer and non-streaming chat requests with loading, empty and error states. Prevent duplicate submissions. Disable the composer for an active/pending run and re-enable only when server state permits.
+- [x] Implement composer and streamed chat requests with loading, empty and error states. Prevent duplicate submissions. Disable the composer for an active/pending run and re-enable only when server state permits.
 - [x] Upsert returned messages by stable ID and respect backend ordering. Handle completed, waiting-for-approval and failed states; reload history after uncertain transport failures instead of automatically resending mutations.
 - [x] Render assistant content safely, with validated citation labels (article title and section). Show title and section labels only; no article-opening view or deleted-source handling is required. Do not execute embedded HTML or scripts.
 

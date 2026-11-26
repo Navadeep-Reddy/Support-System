@@ -229,6 +229,8 @@ export function ChatPanel({
   locked = false,
   customer,
   messages,
+  pendingMessage,
+  streamingText,
   isTyping,
   composer,
   notice,
@@ -242,6 +244,8 @@ export function ChatPanel({
   customer: Customer;
   locked?: boolean;
   messages: Message[];
+  pendingMessage: Message | null;
+  streamingText: string;
   isTyping: boolean;
   composer: string;
   notice: string | null;
@@ -256,7 +260,7 @@ export function ChatPanel({
 
   useEffect(() => {
     if (messageScrollRef.current) messageScrollRef.current.scrollTop = messageScrollRef.current.scrollHeight;
-  }, [messages, isTyping]);
+  }, [messages, pendingMessage, streamingText, isTyping]);
 
   const pendingApproval = messages.some((message) => message.approval?.status === "pending");
   const activeApproval = locked || pendingApproval;
@@ -279,7 +283,9 @@ export function ChatPanel({
           if (message.role === "assistant") return <AssistantMessage key={message.id} message={message} onFeedback={onFeedback} />;
           return null;
         })}
-        {isTyping && <div className="typing-row"><span className="assistant-avatar"><MessageCircle size={16} /></span><div className="typing-bubble"><span /><span /><span /></div><small>Support assistant is thinking</small></div>}
+        {pendingMessage && <UserMessage message={pendingMessage} customer={customer} />}
+        {streamingText && <div className="assistant-row" aria-label="Assistant response in progress"><span className="assistant-avatar"><MessageCircle size={16} /></span><article className="assistant-message"><div className="message-meta"><strong>Support assistant</strong><span>Writing…</span></div><div className="assistant-copy"><MarkdownContent content={streamingText} /></div></article></div>}
+        {isTyping && !streamingText && <div className="typing-row"><span className="assistant-avatar"><MessageCircle size={16} /></span><div className="typing-bubble"><span /><span /><span /></div><small>Support assistant is thinking</small></div>}
         {messages.length <= 1 && !isTyping && <div className="suggestions"><span>Try asking</span><button onClick={() => onComposerChange("What is my current subscription?")}>What is my current subscription?</button><button onClick={() => onComposerChange("How do I reset my password?")}>How do I reset my password?</button></div>}
       </div>
       <form className="composer-wrap" onSubmit={onSubmit}>

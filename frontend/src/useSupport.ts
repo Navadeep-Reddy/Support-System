@@ -26,6 +26,8 @@ export function useSupport() {
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [histories, setHistories] = useState<Record<string, HistoryResponse>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [pendingMessages, setPendingMessages] = useState<Record<string, Message>>({});
+  const [streamingText, setStreamingText] = useState<Record<string, string>>({});
   const [articles, setArticles] = useState<Article[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(false);
   const [articleNotice, setArticleNotice] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function useSupport() {
     busyIds.current.clear();
     historyVersions.current = {};
     creating.current = null;
-    setCustomer(null); setKnowledgeAdmin(false); setConversations([]); setActiveId(""); setCreatingConversation(false); setHistories({}); setBusy({}); setArticles([]); setLoadingArticles(false); setArticleNotice(null); setArticleLoadFailed(false);
+    setCustomer(null); setKnowledgeAdmin(false); setConversations([]); setActiveId(""); setCreatingConversation(false); setHistories({}); setBusy({}); setPendingMessages({}); setStreamingText({}); setArticles([]); setLoadingArticles(false); setArticleNotice(null); setArticleLoadFailed(false);
   }, []);
   const handleError = useCallback((error: unknown) => {
     if (error instanceof ApiClientError && error.status === 401) {
@@ -142,7 +144,10 @@ export function useSupport() {
     });
     if (turn.error) setNotice(turn.error.message);
   };
-  const runMutation = async (id: string, operation: () => Promise<TurnResponse>) => {
+  const clearPending = (id: string) => setPendingMessages((items) => {
+    const next = { ...items }; delete next[id]; return next;
+  });
+  const runMutation = async (id: string, operation: () => Promise<TurnResponse>, isChat = false) => {
     if (!id || busyIds.current.has(id)) return;
     const generation = epoch.current;
     busyIds.current.add(id);
@@ -152,40 +157,70 @@ export function useSupport() {
       const turn = await operation();
       if (generation !== epoch.current) return;
       applyTurn(turn);
+      if (isChat) { clearPending(id); setStreamingText((items) => ({ ...items, [id]: "" })); }
       await loadHistory(id, generation);
       await loadConversations(generation);
     } catch (error) {
       if (generation !== epoch.current) return;
       handleError(error);
       // Never resend an uncertain mutation; recover the authoritative server state.
-      try { await loadHistory(id, generation); } catch { /* preserve the original error */ }
+      try {
+        let recovered = await loadHistory(id, generation);
+        if (isChat && generation === epoch.current) clearPending(id);
+        const deadline = Date.now() + 120_000;
+        while (isChat && recovered.active_run?.status === "running" && generation === epoch.current && Date.now() < deadline) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1000));
+          if (generation !== epoch.current) break;
+          recovered = await loadHistory(id, generation);
+        }
+      } catch { /* Preserve the visible message when delivery remains uncertain. */ }
+      if (isChat && generation === epoch.current) setStreamingText((items) => ({ ...items, [id]: "" }));
     } finally {
       if (generation === epoch.current) { busyIds.current.delete(id); setBusy((items) => ({ ...items, [id]: false })); }
     }
   };
+  const sendStream = (id: string, message: string, generation: number) => api.streamChat(id, message, (event) => {
+    if (generation !== epoch.current) return;
+    if (event.type === "started") {
+      void loadHistory(id, generation).then(() => { if (generation === epoch.current) clearPending(id); }).catch(() => {});
+    } else if (event.type === "reset") {
+      setStreamingText((items) => ({ ...items, [id]: "" }));
+    } else if (event.type === "delta") {
+      setStreamingText((items) => ({ ...items, [id]: (items[id] ?? "") + event.text }));
+    }
+  });
   const chat = async (message: string): Promise<boolean | null> => {
-    if (activeId) { await runMutation(activeId, () => api.chat(activeId, message)); return true; }
     const generation = epoch.current;
+    if (activeId && busyIds.current.has(activeId)) return null;
+    const pending: Message = { id: crypto.randomUUID(), conversation_id: activeId, run_id: null, role: "user", content: message, created_at: new Date().toISOString(), citations: [], approval: null, feedback: null };
+    if (activeId) {
+      setPendingMessages((items) => ({ ...items, [activeId]: pending }));
+      await runMutation(activeId, () => sendStream(activeId, message, generation), true);
+      return true;
+    }
     if (creating.current === generation) return null;
     creating.current = generation;
     setCreatingConversation(true);
+    setPendingMessages((items) => ({ ...items, "": pending }));
     let created: Conversation;
     try {
       created = await api.createConversation();
       if (generation !== epoch.current) return null;
       setConversations((items) => [created, ...items]);
       setActiveId(created.id);
+      setPendingMessages((items) => { const next = { ...items, [created.id]: { ...pending, conversation_id: created.id } }; delete next[""]; return next; });
       setHistories((items) => ({ ...items, [created.id]: {
         conversation: created, messages: [], active_run: null, pending_approval: null,
       } }));
     } catch (error) {
       if (generation !== epoch.current) return null;
       handleError(error);
+      clearPending("");
       return generation === epoch.current ? false : null;
     } finally {
       if (creating.current === generation) { creating.current = null; setCreatingConversation(false); }
     }
-    await runMutation(created.id, () => api.chat(created.id, message));
+    await runMutation(created.id, () => sendStream(created.id, message, generation), true);
     return true;
   };
   const decide = (_messageId: string, approval: ApprovalCard, approved: boolean) =>
@@ -220,6 +255,6 @@ export function useSupport() {
   };
 
   return { customer, knowledgeAdmin, enterKnowledge, profiles, loadingSession, notice, setNotice, conversations, activeId, setActiveId,
-    history: histories[activeId], busy: creatingConversation || !!busy[activeId], login, logout, createConversation, chat, decide, feedback,
+    history: histories[activeId], pendingMessage: pendingMessages[activeId] ?? null, streamingText: streamingText[activeId] ?? "", busy: creatingConversation || !!busy[activeId], login, logout, createConversation, chat, decide, feedback,
     articles, loadingArticles, articleLoadFailed, articleNotice, setArticleNotice, refreshArticles, saveArticle, deleteArticle };
 }

@@ -81,7 +81,7 @@ export default function App() {
           <ConversationRail conversations={support.conversations.filter((item) => item.title.toLowerCase().includes(search.toLowerCase()))}
             activeId={support.activeId} searchText={search} onSearch={setSearch} onCreate={create}
             onSelect={(id) => { support.setActiveId(id); support.setNotice(null); setComposer(""); }} />
-          <ChatPanel customer={customer} messages={support.history?.messages ?? []} isTyping={support.busy}
+          <ChatPanel customer={customer} messages={support.history?.messages ?? []} pendingMessage={support.pendingMessage} streamingText={support.streamingText} isTyping={support.busy}
             locked={support.loadingSession || (!!support.activeId && (!support.history || !!support.history.active_run))} composer={composer} notice={support.notice}
             onComposerChange={setComposer} onSubmit={send} onDecide={support.decide} onFeedback={support.feedback}
             onDismissNotice={() => support.setNotice(null)} conversationTitle={current?.title ?? "Start a conversation"} />

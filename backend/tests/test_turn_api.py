@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, AIMessageChunk
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy import create_engine, delete, func, select
@@ -33,6 +33,15 @@ class Model:
         if isinstance(result, Exception):
             raise result
         return result
+
+    async def astream(self, messages):
+        result = self.replies.popleft()
+        if isinstance(result, Exception):
+            raise result
+        for chunk in result:
+            if isinstance(chunk, Exception):
+                raise chunk
+            yield chunk
 
 
 def reset_call():
@@ -96,12 +105,13 @@ def test_contract_endpoints_are_in_openapi(api):
         "/conversations": {"get", "post"},
         "/conversations/{conversation_id}/messages": {"get"},
         "/conversations/{conversation_id}/chat": {"post"},
+        "/conversations/{conversation_id}/chat/stream": {"post"},
         "/approvals/{action_id}": {"post"},
         "/messages/{message_id}/feedback": {"put"},
         "/knowledge/articles": {"get", "post"},
         "/knowledge/articles/{article_id}": {"get", "put", "delete"},
     }
-    assert sum(map(len, endpoints.values())) == 17
+    assert sum(map(len, endpoints.values())) == 18
     for path, methods in endpoints.items():
         assert methods <= paths[path].keys()
     responses = paths["/approvals/{action_id}"]["post"]["responses"]
@@ -112,6 +122,106 @@ def test_contract_endpoints_are_in_openapi(api):
         "/ErrorEnvelope"
     )
     assert client.get("/docs").status_code == 200
+
+
+def test_stream_chat_persists_tokens_and_rejects_foreign_conversation(api):
+    import json
+
+    client, model, _, ids = api
+    login(client, ids[0])
+    conversation = create(client)
+    model.replies.append([AIMessageChunk(content="Hello"), AIMessageChunk(content=" there.")])
+    response = client.post(f"/conversations/{conversation}/chat/stream", json={"message": "Hi"})
+    assert response.status_code == 200
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert [event["type"] for event in events] == ["started", "reset", "delta", "delta", "done"]
+    assert "".join(event["text"] for event in events if event["type"] == "delta") == "Hello there."
+    assert events[-1]["turn"]["status"] == "completed"
+    history = client.get(f"/conversations/{conversation}/messages").json()
+    assert [item["content"] for item in history["messages"]] == ["Hi", "Hello there."]
+    login(client, ids[1])
+    assert (
+        client.post(
+            f"/conversations/{conversation}/chat/stream", json={"message": "Hi"}
+        ).status_code
+        == 404
+    )
+
+
+def test_interrupted_provider_stream_clears_partial_answer_and_finishes_failed(api):
+    import json
+
+    client, model, _, ids = api
+    login(client, ids[0])
+    conversation = create(client)
+    model.replies.append(
+        [AIMessageChunk(content="Partial answer"), RuntimeError("provider failed")]
+    )
+    response = client.post(f"/conversations/{conversation}/chat/stream", json={"message": "Hi"})
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert [event["type"] for event in events] == ["started", "reset", "delta", "reset", "done"]
+    assert events[-1]["turn"]["status"] == "failed"
+    history = client.get(f"/conversations/{conversation}/messages").json()
+    assert history["active_run"] is None
+    assert all(
+        "Partial answer" not in (message["content"] or "") for message in history["messages"]
+    )
+
+
+def test_stream_hides_reasoning_tags_across_chunks(api):
+    import json
+
+    client, model, _, ids = api
+    login(client, ids[0])
+    conversation = create(client)
+    model.replies.append(
+        [
+            AIMessageChunk(content=part)
+            for part in ["<thi", "nk>private", " reasoning</th", "ink>Hello", " there."]
+        ]
+    )
+    response = client.post(f"/conversations/{conversation}/chat/stream", json={"message": "Hi"})
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert "".join(event["text"] for event in events if event["type"] == "delta") == "Hello there."
+    assert events[-1]["turn"]["messages"][-1]["content"] == "Hello there."
+
+
+def test_stream_tool_call_shows_only_validated_approval(api):
+    import json
+
+    client, model, sessions, ids = api
+    login(client, ids[0])
+    conversation = create(client)
+    model.replies.append(
+        [
+            AIMessageChunk(
+                content="",
+                tool_call_chunks=[
+                    {
+                        "name": "request_password_reset",
+                        "args": "{}",
+                        "id": "reset",
+                        "index": 0,
+                        "type": "tool_call_chunk",
+                    }
+                ],
+            )
+        ]
+    )
+    response = client.post(f"/conversations/{conversation}/chat/stream", json={"message": "Reset"})
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert not any(event["type"] == "delta" for event in events)
+    assert events[-1]["turn"]["status"] == "waiting_for_approval"
+    assert events[-1]["turn"]["pending_approval"]["status"] == "pending"
+    with sessions() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(PasswordResetRequest)
+                .where(PasswordResetRequest.customer_id == ids[0])
+            )
+            == 0
+        )
 
 
 def test_http_approve_refresh_ownership_and_duplicate(api):

@@ -50,6 +50,44 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+type ChatStreamEvent =
+  | { type: "started"; run_id: string }
+  | { type: "reset" | "delta"; text: string }
+  | { type: "done"; turn: TurnResponse }
+  | { type: "error"; message: string };
+
+async function streamChat(id: string, message: string, onEvent: (event: ChatStreamEvent) => void): Promise<TurnResponse> {
+  const response = await fetch(`${API_BASE_URL}/conversations/${id}/chat/stream`, {
+    method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as ApiErrorEnvelope | null;
+    throw new ApiClientError(body?.error?.message ?? "Unable to send the message.", response.status,
+      body?.error?.code ?? "UNKNOWN_ERROR", body?.error?.retryable ?? false);
+  }
+  if (!response.body) throw new Error("Streaming is unavailable.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line) continue;
+        const event = JSON.parse(line) as ChatStreamEvent;
+        onEvent(event);
+        if (event.type === "done") return event.turn;
+        if (event.type === "error") throw new Error(event.message);
+      }
+      if (done) throw new Error("The response was interrupted. Refresh history.");
+    }
+  } finally { reader.releaseLock(); }
+}
+
 export const api = {
   customers: async () => request<{ items: Customer[] }>("/customers"),
   login: (customer_id: string) =>
@@ -75,6 +113,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ message }),
     }),
+  streamChat,
   decideApproval: (id: string, approved: boolean) =>
     request<TurnResponse>(`/approvals/${id}`, {
       method: "POST",
