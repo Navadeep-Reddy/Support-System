@@ -16,12 +16,14 @@ from support_agent.core.database import get_engine
 from support_agent.core.logging_config import configure_logging
 from support_agent.core.tracing import configure_langsmith_tracing
 from support_agent.repositories.conversations import recover_running_runs
+from support_agent.schemas.errors import ErrorEnvelope
+from support_agent.services.agent_turns import open_agent_turns
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     settings = get_settings()
     # LangChain/LangGraph automatically trace supported runs from these variables.
@@ -29,9 +31,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     with Session(get_engine()) as session:
         recovered = recover_running_runs(session)
         session.commit()
-    logger.info("startup_runs_recovered", extra={"count": recovered})
-    logger.info("application_started", extra={"database": "connected"})
-    yield
+    logger.info("startup_runs_recovered count=%d", recovered)
+    async with open_agent_turns(get_engine()) as runner:
+        app.state.agent_turns = runner
+        logger.info("application_started", extra={"database": "connected"})
+        yield
     get_engine().dispose()
     logger.info("application_stopped")
 
@@ -41,6 +45,14 @@ app = FastAPI(
     description="Backend API for Aatra subscription support.",
     version="0.1.0",
     lifespan=lifespan,
+    responses={
+        401: {"model": ErrorEnvelope, "description": "Session required"},
+        404: {"model": ErrorEnvelope, "description": "Resource not found"},
+        409: {"model": ErrorEnvelope, "description": "Request conflict"},
+        422: {"model": ErrorEnvelope, "description": "Invalid request"},
+        503: {"model": ErrorEnvelope, "description": "Service unavailable"},
+        500: {"model": ErrorEnvelope, "description": "Internal error"},
+    },
 )
 settings = get_settings()
 app.add_middleware(

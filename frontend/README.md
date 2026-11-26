@@ -1,26 +1,12 @@
 # Frontend
 
-Responsive React + TypeScript support workspace built with Vite, Tailwind CSS, and shadcn-style UI primitives.
-
-## Run the preview
+React, TypeScript and Vite support workspace. The live interface uses the API in `src/api/client.ts` and the contracted types in `src/api/types.ts`. It restores the signed session, conversations, feedback and approval cards from the backend; it does not use the preview fixtures for live answers or actions. Profile selection is a fictional demo, not real authentication.
 
 ```bash
-npm install
+cp .env.example .env.local  # set VITE_API_BASE_URL if the backend is not localhost:8000
+npm ci
 npm run dev
-```
-
-Open the Vite URL (normally `http://localhost:5173`). The default page is the demo profile selector for Alex and Taylor. Choose either profile to explore the customer support experience.
-
-The frontend is currently a **local design preview**. Its account, conversation, approval, feedback, and article examples are fictional and held in browser memory only. The interface labels preview answers and local state; no action is sent to or saved by the backend. The optional query `?view=workspace`, `?view=knowledge`, or `?view=account` opens a preview screen directly for design review.
-
-## API integration boundary
-
-`src/api/types.ts` mirrors shared wire types from `../API_CONTRACT.md`, and `src/api/client.ts` contains the credentialed HTTP methods and structured error handling for the contracted endpoints. UI flows currently use typed fixtures from `src/data/demo.ts`; the live client is not connected to those flows yet. In the integration phase, replace the preview state handlers with the API client, restore the session through `/me`, and keep the preview fixtures out of the live request path.
-
-Set `VITE_API_BASE_URL` to configure the backend origin when integration is enabled. No backend or provider secrets belong in frontend environment variables.
-
-## Checks
-
-```bash
 npm run build
 ```
+
+Open `http://localhost:5173` and ensure the backend's `FRONTEND_ORIGIN` matches the browser origin exactly. The frontend sends credentialed requests. Never put provider credentials in frontend configuration. For complete setup, limitations and verification results, see the [root README](../README.md).

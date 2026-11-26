@@ -85,6 +85,40 @@ class MessageData(BaseModel):
     feedback: FeedbackData | None
 
 
+class ChatInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str
+
+    @field_validator("message")
+    @classmethod
+    def nonblank_message(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Message must not be blank")
+        return value.strip()
+
+
+class ApprovalDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    approved: bool = Field(strict=True)
+
+
+class TurnError(BaseModel):
+    code: str
+    message: str
+    retryable: bool = False
+
+
+class TurnResponse(BaseModel):
+    run_id: UUID
+    conversation_id: UUID
+    status: Literal["completed", "waiting_for_approval", "failed"]
+    messages: list[MessageData]
+    pending_approval: ApprovalCard | None
+    error: TurnError | None
+
+
 class HistoryResponse(BaseModel):
     conversation: ConversationData
     messages: list[MessageData]

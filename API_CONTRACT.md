@@ -188,6 +188,7 @@ Request (only allowed field):
 - Approval: revalidate ownership and execute the stored action transactionally; create exactly one reset record per action ID and persist its result with the approval execution status. Return the actual result to the model.
 - Rejection: persist the rejection, create no reset record, and return a rejection outcome to the model. A rejection does not authorize a retry or automatic replacement action.
 - Repeated decision: return the recorded outcome if available and consistent, or 409 `APPROVAL_RESOLVED`; never execute twice. A concurrent in-progress decision may return 409 `RUN_ACTIVE`. On ambiguous transport failure, reload history to inspect the real outcome.
+- If a decision or resume verification exceeds its active deadline while a database operation is still unresolved, return 503 `DECISION_PENDING` with `retryable: false`. The server reconciles the outcome after the worker settles; the client must refresh history rather than resend the decision. A temporarily active run is not evidence that the action failed or succeeded.
 - If the final explanatory model call fails after execution, preserve the executed card/result and report an honest failed run; do not imply that the reset was rolled back.
 
 Example executed result inside an approval card:
@@ -272,6 +273,7 @@ Optional `details` may contain safe field validation information. Never include 
 | 404 | `NOT_FOUND` | Resource absent or not owned by this session |
 | 409 | `RUN_ACTIVE` | Conversation already running or awaiting approval |
 | 409 | `APPROVAL_RESOLVED` | Approval already decided or no longer pending |
+| 409 | `INVALID_ACTION` | Stored approval payload failed revalidation |
 | 422 | `VALIDATION_ERROR` | Invalid request fields or values |
 | 422 | `SECTION_TOO_LARGE` | KB section exceeds chunk budget |
 | 503 | `PROVIDER_UNAVAILABLE` | Transient AI/embedding provider failure after bounded retries |
@@ -301,7 +303,7 @@ type PaymentData = {
   amount: DecimalString; currency: string; date: Timestamp;
   status: string; failure_reason: string | null;
 };
-type ResetOutcome = ResetResult | { status: "rejected" };
+type ResetOutcome = ResetResult | { status: "rejected"; reason: "customer_cancelled"; message: string };
 ```
 
 | Tool | Input | Result data | Behaviour |

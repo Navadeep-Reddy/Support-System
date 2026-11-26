@@ -9,6 +9,7 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from support_agent.agent.context import ContextError
+from support_agent.services.accounts import AccountError
 from support_agent.services.conversations import ConversationError
 from support_agent.services.knowledge import KnowledgeError
 
@@ -38,6 +39,15 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def handle_context_error(_request: Request, exc: ContextError) -> JSONResponse:
         return _error_response(422, "VALIDATION_ERROR", str(exc))
 
+    @app.exception_handler(AccountError)
+    async def handle_account_error(_request: Request, exc: AccountError) -> JSONResponse:
+        status = {"NOT_FOUND": 404, "INVALID_ACTION": 409, "APPROVAL_REQUIRED": 409}.get(
+            exc.code, 500
+        )
+        return _error_response(
+            status, exc.code, str(exc) if status < 500 else "An unexpected error occurred."
+        )
+
     @app.exception_handler(ConversationError)
     async def handle_conversation_error(_request: Request, exc: ConversationError) -> JSONResponse:
         status = {
@@ -46,8 +56,10 @@ def register_exception_handlers(app: FastAPI) -> None:
             "RUN_ACTIVE": 409,
             "RUN_RESOLVED": 409,
             "APPROVAL_REQUIRED": 409,
+            "APPROVAL_RESOLVED": 409,
+            "DECISION_PENDING": 503,
         }.get(exc.code, 500)
-        return _error_response(status, exc.code, str(exc))
+        return _error_response(status, exc.code, str(exc), retryable=False)
 
     @app.exception_handler(KnowledgeError)
     async def handle_knowledge_error(_request: Request, exc: KnowledgeError) -> JSONResponse:

@@ -105,7 +105,9 @@ def test_history_feedback_and_ownership(environment) -> None:
         client.put(f"/messages/{assistant_id}/feedback", json={"rating": "positive"}).status_code
         == 404
     )
-    assert client.get("/conversations").json()["items"] == []
+    assert conversation_id not in {
+        item["id"] for item in client.get("/conversations").json()["items"]
+    }
 
 
 def test_recovery_keeps_waiting_and_releases_running(environment) -> None:
@@ -179,6 +181,48 @@ def test_startup_recovers_committed_running_runs(monkeypatch: pytest.MonkeyPatch
             )
             ConversationService(session).reserve_run(customer_id, first_id)
             session.rollback()
+    finally:
+        with Session(engine) as session, session.begin():
+            session.execute(delete(Customer).where(Customer.id == customer_id))
+        engine.dispose()
+
+
+def test_pending_approval_unique_under_concurrency() -> None:
+    engine = create_engine(get_settings().test_database_url)
+    initialize_schema(engine)
+    customer_id, conversation_id, run_id = uuid4(), uuid4(), uuid4()
+    with Session(engine) as session, session.begin():
+        session.add(Customer(id=customer_id, handle=f"test-{customer_id}", display_name="Test"))
+        session.flush()
+        session.add(Conversation(id=conversation_id, customer_id=customer_id, title="Test"))
+        session.flush()
+        session.add(AgentRun(id=run_id, conversation_id=conversation_id, status="running"))
+    barrier = Barrier(2)
+
+    def create():
+        with Session(engine) as session:
+            action_id = uuid4()
+            action = ActionApproval(
+                id=action_id,
+                run_id=run_id,
+                action_type="request_password_reset",
+                status="pending",
+                validated_payload=ResetPayload(
+                    action_id=action_id, account_display_name="Test"
+                ).model_dump(mode="json"),
+            )
+            barrier.wait(timeout=10)
+            try:
+                ConversationService(session).add_pending_approval(action)
+                session.commit()
+                return "created"
+            except ConversationError as exc:
+                session.rollback()
+                return exc.code
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            assert sorted(pool.map(lambda _: create(), range(2))) == ["RUN_ACTIVE", "created"]
     finally:
         with Session(engine) as session, session.begin():
             session.execute(delete(Customer).where(Customer.id == customer_id))

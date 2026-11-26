@@ -64,11 +64,14 @@ def test_seed_is_repeatable(environment) -> None:
     seed_knowledge(session, embeddings)
     seed_knowledge(session, embeddings)
     for title, _, _ in ARTICLES:
-        assert session.scalar(
-            select(func.count())
-            .select_from(KnowledgeArticle)
-            .where(KnowledgeArticle.title == title)
-        ) == 1
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(KnowledgeArticle)
+                .where(KnowledgeArticle.title == title)
+            )
+            == 1
+        )
 
 
 def test_chunking_hierarchy_preamble_and_code_fences() -> None:
@@ -116,6 +119,11 @@ def test_crud_auth_indexing_failure_and_search(environment) -> None:
         f"/knowledge/articles/{article_id}", json={**payload, "body": "## New\nChanged"}
     )
     assert updated.status_code == 200
+    embeddings.embed_query = lambda _query: [1.0, 0.0] + [0.0] * 2046
+    updated_results = KnowledgeService(session, embeddings).search("changed")
+    assert any(
+        str(item.article_id) == article_id and item.text == "Changed" for item in updated_results
+    )
     assert (
         session.scalar(
             select(func.count())
@@ -126,6 +134,10 @@ def test_crud_auth_indexing_failure_and_search(environment) -> None:
     )
     assert client.delete(f"/knowledge/articles/{article_id}").status_code == 204
     assert client.get(f"/knowledge/articles/{article_id}").status_code == 404
+    assert all(
+        str(item.article_id) != article_id
+        for item in KnowledgeService(session, embeddings).search("changed")
+    )
     assert (
         session.scalar(
             select(func.count())

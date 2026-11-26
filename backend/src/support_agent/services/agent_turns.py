@@ -54,12 +54,15 @@ def make_model(settings: Settings) -> Any:
 
 
 @asynccontextmanager
-async def open_agent_turns() -> AsyncIterator["AgentTurns"]:
+async def open_agent_turns(engine=None) -> AsyncIterator["AgentTurns"]:
     """Open a PostgreSQL-backed runner; callers retain it across start/resume requests."""
-    settings = get_settings()
+    engine = engine or get_engine()
+    settings = get_settings().model_copy(
+        update={"database_url": engine.url.render_as_string(hide_password=False)}
+    )
     async with AsyncPostgresSaver.from_conn_string(settings.checkpointer_database_uri) as saver:
         await saver.setup()
-        yield AgentTurns(sessionmaker(get_engine(), expire_on_commit=False), settings, saver)
+        yield AgentTurns(sessionmaker(engine, expire_on_commit=False), settings, saver)
 
 
 class AgentTurns:
@@ -75,6 +78,7 @@ class AgentTurns:
         self.sessions = sessions
         self.settings = settings
         self.checkpointer = checkpointer
+        self.background_tasks: set[asyncio.Task] = set()
         self.model = model if model is not None else make_model(settings)
 
     def _execute(self, customer_id: UUID, name: str, arguments: dict[str, Any]) -> ToolResult[Any]:
@@ -110,8 +114,7 @@ class AgentTurns:
                     status="pending",
                     validated_payload=payload.model_dump(mode="json"),
                 )
-                session.add(action)
-                session.flush()
+                ConversationService(session).add_pending_approval(action)
                 ConversationService(session).add_message(
                     customer_id, run_id, "action", None, approval_id=action_id
                 )
@@ -129,7 +132,15 @@ class AgentTurns:
             if run is None or action is None or action.run_id != run_id:
                 raise ConversationError("NOT_FOUND", "The action was not found.")
             if action.status == "rejected":
-                return ToolResult(success=True, data={"status": "rejected"})
+                return ToolResult(
+                    success=True,
+                    data={
+                        "status": "rejected",
+                        "reason": "customer_cancelled",
+                        "message": "The customer cancelled the confirmation. "
+                        "No reset request was created.",
+                    },
+                )
             if action.status == "executed":
                 return ToolResult(
                     success=True, data=ResetResult.model_validate(action.execution_result)
@@ -237,7 +248,46 @@ class AgentTurns:
             0, state["remaining_seconds"] - (time.monotonic() - started)
         )
         state["active_deadline"] = started + self.settings.active_turn_deadline_seconds
-        return await self._invoke(customer_id, run.id, state, state["remaining_seconds"])
+        return await self._invoke(
+            customer_id, run.id, state, state["remaining_seconds"], conversation_id=conversation_id
+        )
+
+    async def decision_deadline(
+        self, customer_id: UUID, run_id: UUID, action_id: UUID, started: float
+    ) -> float:
+        """Read the saved active budget and ensure this is the interrupted action."""
+        budget = self.settings.active_turn_deadline_seconds - (time.monotonic() - started)
+        async with asyncio.timeout(max(0.0, budget)):
+            snapshot = await self._graph(customer_id, run_id).aget_state(
+                {"configurable": {"thread_id": str(run_id)}}
+            )
+        payload = snapshot.values.get("approval_payload", {})
+        if str(payload.get("action_id")) != str(action_id):
+            raise ConversationError("APPROVAL_RESOLVED", "The action is no longer pending.")
+        return started + snapshot.values["remaining_seconds"]
+
+    def fail_pending_decision(self, customer_id: UUID, run_id: UUID, action_id: UUID) -> bool:
+        with self.sessions.begin() as session:
+            repository = ConversationRepository(session)
+            run = repository.owned_run_for_update(customer_id, run_id)
+            pending = repository.pending_approval(run_id) if run else None
+            if (
+                run is None
+                or run.status != "waiting_for_approval"
+                or not pending
+                or pending.id != action_id
+            ):
+                return False
+            pending.status = "failed"
+            service = ConversationService(session)
+            service.add_message(
+                customer_id,
+                run_id,
+                "assistant",
+                "I couldn't finish the request before the deadline. No reset was made.",
+            )
+            service.set_run_status(customer_id, run_id, "failed")
+            return True
 
     def _activate_resume(
         self, customer_id: UUID, run_id: UUID, payload: dict[str, Any], deadline: float
@@ -255,8 +305,8 @@ class AgentTurns:
                 run = repository.owned_run_for_update(customer_id, run_id)
                 if run is None:
                     raise ConversationError("NOT_FOUND", "The run was not found.")
-                if run.status != "waiting_for_approval":
-                    raise ConversationError("RUN_RESOLVED", "The run is not waiting for approval.")
+                if run.status not in ("waiting_for_approval", "running"):
+                    raise ConversationError("RUN_RESOLVED", "The run cannot be resumed.")
                 action = session.get(ActionApproval, UUID(payload["action_id"]))
                 if (
                     action is None
@@ -273,6 +323,15 @@ class AgentTurns:
                 raise TimeoutError("Decision processing exceeded the active deadline") from exc
             raise
 
+    async def _settle_abandoned_activation(
+        self, task: asyncio.Task, customer_id: UUID, run_id: UUID
+    ) -> None:
+        try:
+            await task
+        except Exception:
+            logger.warning("abandoned_resume_activation_failed run_id=%s", run_id, exc_info=True)
+        await asyncio.to_thread(self._finish, customer_id, run_id, {"status": "failed"})
+
     async def resume(
         self, customer_id: UUID, run_id: UUID, *, active_started_at: float
     ) -> dict[str, Any]:
@@ -283,6 +342,7 @@ class AgentTurns:
         started = active_started_at
         graph = self._graph(customer_id, run_id)
         config = {"configurable": {"thread_id": str(run_id)}}
+        abandoned = False
         try:
             initial_budget = max(
                 0.0, self.settings.active_turn_deadline_seconds - (time.monotonic() - started)
@@ -300,18 +360,22 @@ class AgentTurns:
             try:
                 async with asyncio.timeout(remaining):
                     await asyncio.shield(task)
-            except asyncio.CancelledError:
-                try:
-                    await task
-                except Exception:
-                    logger.warning("cancelled_resume_activation_failed")
-                raise
-            except TimeoutError:
-                try:
-                    await task
-                except Exception:
-                    pass
-                raise
+            except (TimeoutError, asyncio.CancelledError) as exc:
+                abandoned = True
+                cleanup = asyncio.create_task(
+                    self._settle_abandoned_activation(task, customer_id, run_id)
+                )
+                self.background_tasks.add(cleanup)
+                cleanup.add_done_callback(self.background_tasks.discard)
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
+                raise ConversationError(
+                    "DECISION_PENDING", "The decision outcome is being resolved. Refresh history."
+                ) from exc
+        except asyncio.CancelledError:
+            if not abandoned:
+                self._finish(customer_id, run_id, {"status": "failed"})
+            raise
         except TimeoutError:
             self._finish(customer_id, run_id, {"status": "failed"})
             return {"run_id": run_id, "status": "failed", "error": "DEADLINE_EXCEEDED"}
@@ -321,6 +385,7 @@ class AgentTurns:
             Command(resume=True),
             max(0.0, deadline - time.monotonic()),
             graph=graph,
+            conversation_id=UUID(snapshot.values["conversation_id"]),
         )
 
     async def _invoke(
@@ -330,10 +395,12 @@ class AgentTurns:
         graph_input: Any,
         budget: float,
         graph: Any | None = None,
+        conversation_id: UUID | None = None,
     ) -> dict[str, Any]:
         graph = graph or self._graph(customer_id, run_id)
         config = {
             "configurable": {"thread_id": str(run_id)},
+            "metadata": {"run_id": str(run_id), "conversation_id": str(conversation_id or "")},
             "recursion_limit": 2 * (self.settings.max_llm_calls + self.settings.max_tool_calls)
             + 20,
         }

@@ -120,6 +120,18 @@ class ConversationService:
             raise
         return RunData.model_validate(run)
 
+    def add_pending_approval(self, action: ActionApproval) -> None:
+        try:
+            with self.session.begin_nested():
+                self.session.add(action)
+                self.session.flush()
+        except IntegrityError as exc:
+            if getattr(getattr(exc.orig, "diag", None), "constraint_name", None) == (
+                "uq_action_approvals_one_pending_per_run"
+            ):
+                raise ConversationError("RUN_ACTIVE", "An approval is already pending.") from exc
+            raise
+
     def set_run_status(
         self,
         customer_id: UUID,

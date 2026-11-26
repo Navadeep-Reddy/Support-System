@@ -171,7 +171,13 @@ def build_graph(
                 and attempts < settings.max_llm_calls
                 and remaining > 0
             )
-            logger.warning("agent_model_failed", extra={"retry": retry, "attempt": attempts})
+            logger.warning(
+                "agent_model_failed run_id=%s conversation_id=%s retry=%s attempt=%s",
+                state.get("run_id"),
+                state.get("conversation_id"),
+                retry,
+                attempts,
+            )
             if retry:
                 delay = min(0.25 * 2 ** state["retries"], remaining)
                 await asyncio.sleep(delay)
@@ -205,6 +211,7 @@ def build_graph(
         retrievals = state["retrieval_calls"] + (name == "search_knowledge_base")
         started = time.monotonic()
         if attempted > settings.max_tool_calls or retrievals > settings.max_retrieval_calls:
+            logger.warning("agent_execution_limit run_id=%s tool=%s", state.get("run_id"), name)
             return {
                 "status": "failed",
                 "error": "EXECUTION_LIMIT",
@@ -243,8 +250,20 @@ def build_graph(
                     "tool_calls": attempted,
                     "retrieval_calls": retrievals,
                 }
-            logger.exception("agent_tool_failed", extra={"tool": name})
+            logger.exception(
+                "agent_tool_failed run_id=%s conversation_id=%s tool=%s",
+                state.get("run_id"),
+                state.get("conversation_id"),
+                name,
+            )
             result = _failure("TOOL_UNAVAILABLE", "The requested operation is unavailable.")
+        if not result.success:
+            logger.warning(
+                "agent_tool_rejected run_id=%s tool=%s code=%s",
+                state.get("run_id"),
+                name,
+                result.error.code if result.error else "UNKNOWN",
+            )
         remaining = _remaining(state, started)
         if remaining <= 0:
             return {
@@ -315,7 +334,7 @@ def build_graph(
                 or getattr(getattr(exc, "orig", None), "sqlstate", None) == "57014"
             ):
                 return {"status": "failed", "error": "DEADLINE_EXCEEDED", "remaining_seconds": 0}
-            logger.exception("agent_approval_prepare_failed")
+            logger.exception("agent_approval_prepare_failed run_id=%s", state.get("run_id"))
             return {"status": "failed", "error": "APPROVAL_UNAVAILABLE"}
         remaining = _remaining(state, started)
         if remaining <= 0:
@@ -343,7 +362,7 @@ def build_graph(
                 or time.monotonic() - started >= state["remaining_seconds"]
             ):
                 return {"status": "failed", "error": "DEADLINE_EXCEEDED", "remaining_seconds": 0}
-            logger.exception("agent_approval_resolution_failed")
+            logger.exception("agent_approval_resolution_failed run_id=%s", state.get("run_id"))
             return {"status": "failed", "error": "APPROVAL_UNAVAILABLE"}
         remaining = _remaining(state, started)
         call = state["pending_calls"][state["call_index"]]

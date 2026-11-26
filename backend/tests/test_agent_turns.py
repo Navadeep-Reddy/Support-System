@@ -79,7 +79,14 @@ def test_pending_approval_survives_wait_and_resume_rejection(customer_db):
             history = ConversationService(session).history(customer_id, conversation_id)
             assert history.pending_approval.status == "pending"
             action_id = history.pending_approval.action_id
-            assert session.scalar(select(PasswordResetRequest)) is None
+            assert (
+                session.scalar(
+                    select(PasswordResetRequest).where(
+                        PasswordResetRequest.customer_id == customer_id
+                    )
+                )
+                is None
+            )
         with pytest.raises(ConversationError):
             await runner.resume(customer_id, paused["run_id"], active_started_at=time.monotonic())
         with sessions.begin() as session:
@@ -95,7 +102,14 @@ def test_pending_approval_survives_wait_and_resume_rejection(customer_db):
             assert history.active_run is None
             assert [m.role for m in history.messages] == ["user", "action", "assistant"]
             assert history.messages[1].approval.status == "rejected"
-            assert session.scalar(select(PasswordResetRequest)) is None
+            assert (
+                session.scalar(
+                    select(PasswordResetRequest).where(
+                        PasswordResetRequest.customer_id == customer_id
+                    )
+                )
+                is None
+            )
 
     asyncio.run(run())
 
@@ -305,6 +319,61 @@ def test_resume_uses_remaining_budget_and_preserves_outcome(customer_db):
     asyncio.run(run())
 
 
+def test_cancelled_resume_preserves_reset_and_releases_run(customer_db):
+    sessions, customer_id, conversation_id = customer_db
+
+    async def run():
+        runner = AgentTurns(
+            sessions,
+            get_settings(),
+            InMemorySaver(),
+            Model(
+                [
+                    AIMessage(
+                        content="",
+                        tool_calls=[
+                            {
+                                "name": "request_password_reset",
+                                "args": {},
+                                "id": "reset",
+                                "type": "tool_call",
+                            }
+                        ],
+                    )
+                ]
+            ),
+        )
+        paused = await runner.start(customer_id, conversation_id, "Reset my password")
+        with sessions.begin() as session:
+            action = session.scalar(
+                select(ActionApproval).where(ActionApproval.run_id == paused["run_id"])
+            )
+            action.status = "approved"
+            action.decided_at = datetime.now(UTC)
+            reset = AccountService(session).execute_reset(customer_id, action.id)
+        original = runner._activate_resume
+
+        def slow_activation(*args):
+            time.sleep(0.1)
+            return original(*args)
+
+        runner._activate_resume = slow_activation
+        task = asyncio.create_task(
+            runner.resume(customer_id, paused["run_id"], active_started_at=time.monotonic())
+        )
+        await asyncio.sleep(0.03)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        await asyncio.wait_for(asyncio.gather(*runner.background_tasks), timeout=3)
+        with sessions() as session:
+            history = ConversationService(session).history(customer_id, conversation_id)
+            assert history.active_run is None
+            assert history.messages[1].approval.result.request_id == reset.request_id
+
+    asyncio.run(run())
+
+
 def test_timeout_during_resume_verification_fails_run_and_keeps_result(customer_db):
     sessions, customer_id, conversation_id = customer_db
 
@@ -347,9 +416,10 @@ def test_timeout_during_resume_verification_fails_run_and_keeps_result(customer_
             return original(*args)
 
         runner._activate_resume = slow_activation
-        failed = await runner.resume(customer_id, run_id, active_started_at=time.monotonic())
-        assert failed["status"] == "failed"
-        assert failed["error"] == "DEADLINE_EXCEEDED"
+        with pytest.raises(ConversationError) as error:
+            await runner.resume(customer_id, run_id, active_started_at=time.monotonic())
+        assert error.value.code == "DECISION_PENDING"
+        await asyncio.wait_for(asyncio.gather(*runner.background_tasks), timeout=3)
         with sessions() as session:
             history = ConversationService(session).history(customer_id, conversation_id)
             assert history.active_run is None
