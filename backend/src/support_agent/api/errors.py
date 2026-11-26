@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 _ERROR_BY_STATUS: Mapping[int, tuple[str, str]] = {
-    401: ("SESSION_REQUIRED", "A valid demo session is required."),
+    401: ("SESSION_REQUIRED", "A valid session is required."),
     404: ("NOT_FOUND", "The requested resource was not found."),
     409: ("CONFLICT", "The request conflicts with the current resource state."),
     422: ("VALIDATION_ERROR", "Request validation failed."),

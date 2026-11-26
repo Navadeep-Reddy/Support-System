@@ -42,16 +42,16 @@ Depends on BE-01 (database connection); provider verification may proceed in par
 
 **Done when:** initialization and seeding can run again without duplication or data loss, both profiles have distinct correct records, and constraints are verifiable.
 
-### BE-03 — Demo sessions and deterministic account services
+### BE-03 — Customer sessions and deterministic account services
 
 Depends on BE-02.
 
-- [ ] Implement demo customer listing, login, logout and current-session lookup using a signed HTTP-only cookie and backend-held signing secret. Configure credentialed CORS for the explicit frontend origin. Demo selection is not real authentication.
-- [ ] Implement scoped repositories and service methods for current subscription (including plan price/status) and latest payment (timestamp plus stable tie-breaker). Return typed projections rather than ORM objects.
-- [ ] Implement reset preparation and execution services independently of the LLM: preparation performs no reset mutation; execution requires an approved owned action, persists one reset request per action and returns its simulated `https://example.invalid/reset/<request-id>` link.
-- [ ] Enforce ownership at the service/repository boundary; customer identity must come from trusted session/run context, not model-controlled parameters.
+- [x] Implement customer listing, login, logout and current-session lookup using a signed HTTP-only cookie and backend-held signing secret. Configure credentialed CORS for the explicit frontend origin. Profile selection is not real authentication.
+- [x] Implement scoped repositories and service methods for current subscription (including plan price/status) and latest payment (timestamp plus stable tie-breaker). Return typed projections rather than ORM objects.
+- [x] Implement reset preparation and execution services independently of the LLM: preparation performs no reset mutation; execution requires an approved owned action, persists one reset request per action and returns its simulated `https://example.invalid/reset/<request-id>` link.
+- [x] Enforce ownership at the service/repository boundary; customer identity must come from trusted session/run context, not model-controlled parameters.
 
-**Done when:** the four demo session endpoints work, account lookups return the correct customer data, and reset execution is impossible without a valid approval.
+**Done when:** the four customer session endpoints work, account lookups return the correct customer data, and reset execution is impossible without a valid approval.
 
 ### BE-04 — Knowledge base CRUD and vector retrieval
 

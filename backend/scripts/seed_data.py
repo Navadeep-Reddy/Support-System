@@ -46,9 +46,13 @@ def seed_demo_data(engine: Engine | None = None) -> None:
                 plan.currency = "USD"
             plans_by_code[code] = plan
 
-        customer_seeds = (("alex-demo", "Alex"), ("taylor-demo", "Taylor"))
+        customer_seeds = (("alex", "Alex"), ("taylor", "Taylor"))
         for handle, display_name in customer_seeds:
             customer = session.scalar(select(Customer).where(Customer.handle == handle))
+            if customer is None:
+                # Preserve IDs and related records from earlier seed runs.
+                legacy_handle = f"{handle}-demo"
+                customer = session.scalar(select(Customer).where(Customer.handle == legacy_handle))
             if customer is None:
                 customer = Customer(
                     id=stable_id(f"customer/{handle}"),
@@ -57,12 +61,13 @@ def seed_demo_data(engine: Engine | None = None) -> None:
                 )
                 session.add(customer)
             else:
+                customer.handle = handle
                 customer.display_name = display_name
             customers_by_handle[handle] = customer
 
         subscription_seeds = (
-            ("alex-demo", "pro"),
-            ("taylor-demo", "business"),
+            ("alex", "pro"),
+            ("taylor", "business"),
         )
         for handle, plan_code in subscription_seeds:
             customer = customers_by_handle[handle]
@@ -82,7 +87,7 @@ def seed_demo_data(engine: Engine | None = None) -> None:
         payment_seeds = (
             {
                 "key": "payment/alex-initial",
-                "handle": "alex-demo",
+                "handle": "alex",
                 "amount": Decimal("15.00"),
                 "occurred_at": now - timedelta(days=5),
                 "status": "successful",
@@ -91,7 +96,7 @@ def seed_demo_data(engine: Engine | None = None) -> None:
             },
             {
                 "key": "payment/taylor-renewal",
-                "handle": "taylor-demo",
+                "handle": "taylor",
                 "amount": Decimal("39.00"),
                 "occurred_at": now - timedelta(days=1),
                 "status": "failed",
@@ -112,7 +117,7 @@ def seed_demo_data(engine: Engine | None = None) -> None:
             payment.payment_type = seed["payment_type"]
             payment.failure_reason = seed["failure_reason"]
 
-    print("Seeded 3 plans, 2 demo customers, 2 current subscriptions, and 2 sample payments.")
+    print("Seeded 3 plans, 2 customers, 2 current subscriptions, and 2 sample payments.")
 
 
 def main() -> None:

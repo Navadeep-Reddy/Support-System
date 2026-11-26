@@ -271,9 +271,9 @@ Use FastAPI with Pydantic and generated OpenAPI/Swagger documentation. Suggested
 
 | Method / path | Purpose |
 | --- | --- |
-| `GET /demo/customers` | List selectable profiles (safe display fields only) |
-| `POST /demo/login` | Establish demo session for selected profile |
-| `POST /demo/logout` | Clear session |
+| `GET /customers` | List selectable profiles (safe display fields only) |
+| `POST /sessions` | Establish a session for the selected profile |
+| `DELETE /sessions/current` | Clear session |
 | `GET /me` | Return current demo profile |
 | `GET /conversations` | List owned conversations |
 | `POST /conversations` | Start a conversation |

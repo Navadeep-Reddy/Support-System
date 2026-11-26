@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     embedding_model: str = "nvidia/nemotron-3.5-embed-1b"
     embedding_dimensions: int = Field(default=2048, gt=0)
     session_secret: SecretStr = SecretStr("insecure-local-development-secret-change-me")
-    session_cookie_name: str = "support_demo_session"
+    session_cookie_name: str = "support_session"
     session_cookie_secure: bool = False
     frontend_origin: str = "http://localhost:5173"
     langsmith_tracing: bool = False

@@ -34,4 +34,8 @@ Verified with the configured NVIDIA and LangSmith accounts:
 | FastAPI startup, PostgreSQL startup probe, and `/health` | Passed | — |
 | Safe request-validation and unexpected-error envelopes | Passed | — |
 
-The focused backend suite currently passes 11 tests; Ruff and Python compilation checks pass. These are provider/bootstrap checks, not the eight application evaluation cases. The observed API timings are a single local smoke run, not performance benchmarks.
+The customer and session endpoints (`GET /customers`, `POST /sessions`, `DELETE /sessions/current`, and `GET /me`) use signed HTTP-only cookies and permit credentialed requests from the configured `FRONTEND_ORIGIN`. Profile selection is not real authentication. Set a unique `SESSION_SECRET` outside source control and enable `SESSION_COOKIE_SECURE` when using HTTPS.
+
+The account service provides customer-scoped subscription and latest-payment projections. Reset preparation creates no reset request; execution requires an approved action owned by the customer and writes the simulated request and approval result in the caller's transaction. The approval API and agent integration are not implemented yet (BE-07).
+
+The focused backend suite currently passes 19 tests and Ruff checks pass. These include demo session and account service checks, not the eight application evaluation cases. The observed API timings are a single local smoke run, not performance benchmarks.

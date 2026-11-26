@@ -3,9 +3,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from starlette.middleware.sessions import SessionMiddleware
 
 from support_agent.api.errors import register_exception_handlers
+from support_agent.api.sessions import router as session_router
 from support_agent.core.config import get_settings
 from support_agent.core.database import get_engine
 from support_agent.core.logging_config import configure_logging
@@ -30,11 +33,27 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="Aatra Support Agent API",
-    description="Backend API for the fictional Aatra subscription support demo.",
+    description="Backend API for Aatra subscription support.",
     version="0.1.0",
     lifespan=lifespan,
 )
+settings = get_settings()
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret.get_secret_value(),
+    session_cookie=settings.session_cookie_name,
+    https_only=settings.session_cookie_secure,
+    same_site="lax",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_origin],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 register_exception_handlers(app)
+app.include_router(session_router)
 
 
 @app.get("/health", tags=["health"])

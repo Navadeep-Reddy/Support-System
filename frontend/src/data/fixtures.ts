@@ -9,12 +9,12 @@ import type {
 const now = new Date();
 const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
 
-export const demoCustomers: Customer[] = [
+export const fixtureCustomers: Customer[] = [
   { id: "00000000-0000-4000-8000-000000000001", handle: "alex", display_name: "Alex" },
   { id: "00000000-0000-4000-8000-000000000002", handle: "taylor", display_name: "Taylor" },
 ];
 
-export const demoConversations: Conversation[] = [
+export const fixtureConversations: Conversation[] = [
   { id: "00000000-0000-4000-8000-000000000010", title: "Refund policy", created_at: ago(90), updated_at: ago(3) },
   { id: "00000000-0000-4000-8000-000000000011", title: "My subscription", created_at: ago(220), updated_at: ago(35) },
   { id: "00000000-0000-4000-8000-000000000012", title: "Reset my password", created_at: ago(1440), updated_at: ago(1440) },
@@ -40,7 +40,7 @@ export function createInitialMessages(customer: Customer): Message[] {
     ? "00000000-0000-4000-8000-000000000051"
     : "00000000-0000-4000-8000-000000000050";
   const answer = isTaylor
-    ? "Your latest $39.00 USD Business renewal failed because of insufficient funds. Check your balance or contact your provider; this demo cannot retry it."
+    ? "Your latest $39.00 USD Business renewal failed because of insufficient funds. Check your balance or contact your provider; support cannot retry it."
     : "Successful initial payments may qualify within 14 days; renewals and payments already refunded or requested are excluded.";
 
   return [
@@ -90,9 +90,9 @@ export function createInitialMessages(customer: Customer): Message[] {
 }
 
 export function createConversationMessages(customer: Customer, conversationId: string, title: string): Message[] {
-  if (conversationId === demoConversations[0].id) return createInitialMessages(customer);
+  if (conversationId === fixtureConversations[0].id) return createInitialMessages(customer);
 
-  if (conversationId === demoConversations[1].id) {
+  if (conversationId === fixtureConversations[1].id) {
     const taylor = customer.handle === "taylor";
     return [
       {
@@ -122,7 +122,7 @@ export function createConversationMessages(customer: Customer, conversationId: s
     ];
   }
 
-  if (conversationId === demoConversations[2].id) {
+  if (conversationId === fixtureConversations[2].id) {
     const rejectedApproval: ApprovalCard = {
       ...pendingApproval,
       action_id: "00000000-0000-4000-8000-000000000022",
@@ -170,7 +170,7 @@ export function createConversationMessages(customer: Customer, conversationId: s
   return emptyMessages(conversationId, title);
 }
 
-export const demoArticles: Article[] = [
+export const fixtureArticles: Article[] = [
   {
     id: "00000000-0000-4000-8000-000000000050",
     title: "Refund policy",
@@ -185,7 +185,7 @@ export const demoArticles: Article[] = [
     category: "Billing",
     created_at: ago(28_000),
     updated_at: ago(28_000),
-    body: "## Common causes\nA payment can fail because of insufficient funds, an expired payment method, or a temporary issue with the payment provider.\n\n## Safe next steps\nCheck with your bank or payment provider and make sure funds are available. Support cannot retry a payment or change payment details in this demo.",
+    body: "## Common causes\nA payment can fail because of insufficient funds, an expired payment method, or a temporary issue with the payment provider.\n\n## Safe next steps\nCheck with your bank or payment provider and make sure funds are available. Support cannot retry a payment or change payment details.",
   },
   {
     id: "00000000-0000-4000-8000-000000000052",
@@ -193,7 +193,7 @@ export const demoArticles: Article[] = [
     category: "Account access",
     created_at: ago(25_000),
     updated_at: ago(25_000),
-    body: "## Requesting a reset\nSupport can prepare a simulated password-reset request after you explicitly confirm it.\n\n## What to expect\nThe demo returns a non-operational example.invalid link. No email is sent and no password changes.",
+    body: "## Requesting a reset\nSupport can prepare a simulated password-reset request after you explicitly confirm it.\n\n## What to expect\nThe request returns a non-operational example.invalid link. No email is sent and no password changes.",
   },
   {
     id: "00000000-0000-4000-8000-000000000053",
@@ -201,7 +201,7 @@ export const demoArticles: Article[] = [
     category: "Subscriptions",
     created_at: ago(22_000),
     updated_at: ago(22_000),
-    body: "## Monthly plans\nFree is $0 per month, Pro is $15 per month, and Business is $39 per month.\n\n## Subscription status\nYour current plan and status are available from your account summary. This demo does not change plans.",
+    body: "## Monthly plans\nFree is $0 per month, Pro is $15 per month, and Business is $39 per month.\n\n## Subscription status\nYour current plan and status are available from your account summary. Support cannot change plans.",
   },
 ];
 

@@ -51,13 +51,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  customers: async () => request<{ items: Customer[] }>("/demo/customers"),
+  customers: async () => request<{ items: Customer[] }>("/customers"),
   login: (customer_id: string) =>
-    request<Customer>("/demo/login", {
+    request<Customer>("/sessions", {
       method: "POST",
       body: JSON.stringify({ customer_id }),
     }),
-  logout: () => request<void>("/demo/logout", { method: "POST" }),
+  logout: () => request<void>("/sessions/current", { method: "DELETE" }),
   me: () => request<Customer>("/me"),
   conversations: async () =>
     request<{ items: Conversation[] }>("/conversations"),

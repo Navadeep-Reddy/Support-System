@@ -101,7 +101,7 @@ def test_demo_seed_is_repeatable_without_duplicates(test_engine: Engine) -> None
         }
 
         customers = {customer.handle: customer for customer in session.scalars(select(Customer))}
-        assert set(customers) == {"alex-demo", "taylor-demo"}
+        assert set(customers) == {"alex", "taylor"}
         subscriptions = list(
             session.execute(
                 select(Customer.handle, Plan.plan_code, Subscription.status)
@@ -110,8 +110,8 @@ def test_demo_seed_is_repeatable_without_duplicates(test_engine: Engine) -> None
             )
         )
         assert set(subscriptions) == {
-            ("alex-demo", "pro", "active"),
-            ("taylor-demo", "business", "active"),
+            ("alex", "pro", "active"),
+            ("taylor", "business", "active"),
         }
 
         payments = list(session.scalars(select(Payment)))
@@ -125,9 +125,9 @@ def test_demo_seed_is_repeatable_without_duplicates(test_engine: Engine) -> None
             )
             for payment in payments
         } == {
-            (customers["alex-demo"].id, Decimal("15.00"), "successful", "initial", None),
+            (customers["alex"].id, Decimal("15.00"), "successful", "initial", None),
             (
-                customers["taylor-demo"].id,
+                customers["taylor"].id,
                 Decimal("39.00"),
                 "failed",
                 "renewal",

@@ -44,11 +44,11 @@ import { Textarea } from "./components/ui/textarea";
 import {
   createInitialMessages,
   createConversationMessages,
-  demoArticles,
-  demoCustomers,
-  demoConversations,
+  fixtureArticles,
+  fixtureCustomers,
+  fixtureConversations,
   emptyMessages,
-} from "./data/demo";
+} from "./data/fixtures";
 
 type Section = "chat" | "knowledge" | "account";
 type FeedbackDraft = { rating: "positive" | "negative"; comment: string };
@@ -85,24 +85,24 @@ function App() {
   const previewQuery = new URLSearchParams(window.location.search);
   const previewView = previewMode ? previewQuery.get("view") : null;
   const previewProfile = previewMode && ["workspace", "knowledge", "account"].includes(previewView ?? "")
-    ? demoCustomers.find((profile) => profile.handle === previewQuery.get("profile")) ?? demoCustomers[0]
+    ? fixtureCustomers.find((profile) => profile.handle === previewQuery.get("profile")) ?? fixtureCustomers[0]
     : null;
   const [customer, setCustomer] = useState<Customer | null>(previewProfile);
-  const [selectedProfile, setSelectedProfile] = useState(previewProfile?.id ?? demoCustomers[0].id);
+  const [selectedProfile, setSelectedProfile] = useState(previewProfile?.id ?? fixtureCustomers[0].id);
   const [section, setSection] = useState<Section>(previewView === "knowledge" || previewView === "account" ? previewView : "chat");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [conversations, setConversations] = useState(() => previewProfile?.handle === "taylor"
-    ? demoConversations.map((conversation, index) => index === 0 ? { ...conversation, title: "Failed payment" } : conversation)
-    : demoConversations);
-  const [activeConversationId, setActiveConversationId] = useState(demoConversations[0].id);
+    ? fixtureConversations.map((conversation, index) => index === 0 ? { ...conversation, title: "Failed payment" } : conversation)
+    : fixtureConversations);
+  const [activeConversationId, setActiveConversationId] = useState(fixtureConversations[0].id);
   const [messagesByConversation, setMessagesByConversation] = useState<Record<string, Message[]>>({});
   const [composer, setComposer] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [chatNotice, setChatNotice] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
-  const [articles, setArticles] = useState<Article[]>(demoArticles);
-  const [selectedArticleId, setSelectedArticleId] = useState(demoArticles[0].id);
+  const [articles, setArticles] = useState<Article[]>(fixtureArticles);
+  const [selectedArticleId, setSelectedArticleId] = useState(fixtureArticles[0].id);
   const [articleQuery, setArticleQuery] = useState("");
   const [articleEditor, setArticleEditor] = useState<"closed" | "create" | "edit">("closed");
   const [articleDraft, setArticleDraft] = useState({ title: "", category: "", body: "" });
@@ -110,7 +110,7 @@ function App() {
   const [articleNotice, setArticleNotice] = useState<string | null>(null);
 
   function conversationsFor(profile: Customer) {
-    return demoConversations.map((conversation, index) => index === 0 && profile.handle === "taylor"
+    return fixtureConversations.map((conversation, index) => index === 0 && profile.handle === "taylor"
       ? { ...conversation, title: "Failed payment" }
       : conversation);
   }
@@ -136,11 +136,11 @@ function App() {
   }
 
   function login() {
-    const nextCustomer = demoCustomers.find((profile) => profile.id === selectedProfile) ?? demoCustomers[0];
+    const nextCustomer = fixtureCustomers.find((profile) => profile.id === selectedProfile) ?? fixtureCustomers[0];
     setCustomer(nextCustomer);
     setSection("chat");
-    setActiveConversationId(demoConversations[0].id);
-    setMessagesByConversation({ [demoConversations[0].id]: createInitialMessages(nextCustomer) });
+    setActiveConversationId(fixtureConversations[0].id);
+    setMessagesByConversation({ [fixtureConversations[0].id]: createInitialMessages(nextCustomer) });
     setConversations(conversationsFor(nextCustomer));
     setMobileNavOpen(false);
     setProfileMenuOpen(false);
@@ -148,10 +148,10 @@ function App() {
 
   function switchProfile() {
     setCustomer(null);
-    setSelectedProfile(demoCustomers[0].id);
+    setSelectedProfile(fixtureCustomers[0].id);
     setMessagesByConversation({});
-    setActiveConversationId(demoConversations[0].id);
-    setConversations(demoConversations);
+    setActiveConversationId(fixtureConversations[0].id);
+    setConversations(fixtureConversations);
     setSection("chat");
     setProfileMenuOpen(false);
   }
@@ -200,8 +200,8 @@ function App() {
       const forTaylor = customer?.handle === "taylor";
       return {
         content: forTaylor
-          ? "Your latest $39.00 USD Business renewal payment failed because of insufficient funds. You can check the available balance or contact your payment provider. This demo cannot retry the payment or change payment details."
-          : "Your latest payment was successful: $15.00 USD. If you are troubleshooting another payment, check your payment provider for a decline reason. This demo cannot retry a payment or change payment details.",
+          ? "Your latest $39.00 USD Business renewal payment failed because of insufficient funds. You can check the available balance or contact your payment provider. Support cannot retry the payment or change payment details."
+          : "Your latest payment was successful: $15.00 USD. If you are troubleshooting another payment, check your payment provider for a decline reason. Support cannot retry a payment or change payment details.",
         articleId: "00000000-0000-4000-8000-000000000051",
         section: "Safe next steps",
       };
@@ -248,7 +248,7 @@ function App() {
           action_id: newId(),
           action_type: "request_password_reset",
           status: "pending",
-          account_display_name: customer?.display_name ?? "Demo customer",
+          account_display_name: customer?.display_name ?? "Customer",
           created_at: new Date().toISOString(),
           decided_at: null,
           result: null,
@@ -391,7 +391,7 @@ function App() {
             </Button>
             <div>
               <h1>{section === "chat" ? "Your support space" : section === "knowledge" ? "Knowledge guide" : "Account details"}</h1>
-              <p>{section === "chat" ? todayLabel() : section === "knowledge" ? "Find and manage support articles" : "Your current demo profile"}</p>
+              <p>{section === "chat" ? todayLabel() : section === "knowledge" ? "Find and manage support articles" : "Your current profile"}</p>
             </div>
           </div>
           <div className="topbar-right">
@@ -403,7 +403,7 @@ function App() {
                 <ChevronDown size={15} />
               </button>
               {profileMenuOpen && <div className="profile-menu" role="menu">
-                <button role="menuitem" onClick={switchProfile}><UserRound size={15} /> Switch demo profile</button>
+                <button role="menuitem" onClick={switchProfile}><UserRound size={15} /> Switch profile</button>
                 <button role="menuitem" onClick={switchProfile}><LogOut size={15} /> Log out</button>
               </div>}
             </div>
@@ -490,7 +490,7 @@ function LoginScreen({
             <p className="login-description">Get thoughtful answers about your account, grounded in trusted guidance and the details that matter to you.</p>
             <div className="login-proof"><span className="proof-check"><Check size={15} /></span><span>Helpful answers, with their sources close by.</span></div>
           </div>
-          <p className="login-footnote">A fictional support experience for demonstration.</p>
+          <p className="login-footnote">Choose your profile to continue.</p>
         </section>
         <section className="login-form-wrap">
           <div className="login-form">
@@ -498,8 +498,8 @@ function LoginScreen({
               <h2>Choose your profile</h2>
               <p>Select one of the sample accounts to explore support.</p>
             </div>
-            <div className="profile-options" role="radiogroup" aria-label="Demo customer profile">
-              {demoCustomers.map((profile) => {
+            <div className="profile-options" role="radiogroup" aria-label="Customer profile">
+              {fixtureCustomers.map((profile) => {
                 const selected = selectedProfile === profile.id;
                 const taylor = profile.handle === "taylor";
                 return (
@@ -512,9 +512,9 @@ function LoginScreen({
                   onKeyDown={(event) => {
                     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
                     event.preventDefault();
-                    const currentIndex = demoCustomers.findIndex((item) => item.id === profile.id);
-                    const nextIndex = (currentIndex + (event.key === "ArrowLeft" || event.key === "ArrowUp" ? demoCustomers.length - 1 : 1)) % demoCustomers.length;
-                    const nextProfile = demoCustomers[nextIndex];
+                    const currentIndex = fixtureCustomers.findIndex((item) => item.id === profile.id);
+                    const nextIndex = (currentIndex + (event.key === "ArrowLeft" || event.key === "ArrowUp" ? fixtureCustomers.length - 1 : 1)) % fixtureCustomers.length;
+                    const nextProfile = fixtureCustomers[nextIndex];
                     onSelect(nextProfile.id);
                     document.getElementById(`profile-${nextProfile.id}`)?.focus();
                   }}
@@ -528,10 +528,10 @@ function LoginScreen({
                 );
               })}
             </div>
-            <Button className="login-submit" onClick={onContinue}>Continue as {demoCustomers.find((profile) => profile.id === selectedProfile)?.display_name.split(" ")[0]} <ArrowRight size={17} /></Button>
-            <div className="login-safety"><Info size={15} /><span>No password needed. Demo profiles contain fictional data.</span></div>
+            <Button className="login-submit" onClick={onContinue}>Continue as {fixtureCustomers.find((profile) => profile.id === selectedProfile)?.display_name.split(" ")[0]} <ArrowRight size={17} /></Button>
+            <div className="login-safety"><Info size={15} /><span>No password needed. Select a profile to continue.</span></div>
           </div>
-          <div className="login-bottom">Customer support <span>·</span> Demo environment</div>
+          <div className="login-bottom">Customer support</div>
         </section>
       </div>
     </main>
@@ -540,7 +540,7 @@ function LoginScreen({
 
 function BrandMark() {
   return (
-    <a className="brand-mark" href="#home" aria-label="Support demo home">
+    <a className="brand-mark" href="#home" aria-label="Support home">
       <span className="brand-symbol"><Headset size={19} strokeWidth={1.8} aria-hidden="true" /></span>
       <span>support<span className="brand-support">customer care</span></span>
     </a>
@@ -580,7 +580,7 @@ function Sidebar({
       </nav>
       <div className="sidebar-bottom">
         <button className="sidebar-help" onClick={onHelp}><span className="help-icon"><CircleHelp size={17} /></span><div><b>Ask for support</b><small>Start a new conversation</small></div><ArrowRight size={15} /></button>
-        <div className="sidebar-bottom-row"><span>Support demo</span><span>Local preview</span></div>
+        <div className="sidebar-bottom-row"><span>Customer support</span><span>Local preview</span></div>
       </div>
     </aside>
   );
@@ -594,7 +594,7 @@ function ConversationRail({
   onCreate,
   onSelect,
 }: {
-  conversations: typeof demoConversations;
+  conversations: typeof fixtureConversations;
   activeId: string;
   searchText: string;
   onSearch: (value: string) => void;
@@ -792,12 +792,12 @@ function AccountContext({ customer, onOpenAccount }: { customer: Customer; onOpe
   const taylor = customer.handle === "taylor";
   return (
     <aside className="account-context" aria-label="Account summary">
-      <div className="context-heading"><h2>Your account</h2><Badge tone="neutral">Demo</Badge></div>
+      <div className="context-heading"><h2>Your account</h2></div>
       <div className="context-profile"><Avatar customer={customer} /><div><strong>{customer.display_name}</strong><small>{taylor ? "Business plan" : "Pro plan"}</small></div></div>
       <div className="account-card subscription-card"><div className="account-card-title"><span className="context-icon icon-sage"><BookOpen size={16} /></span><span>SUBSCRIPTION</span></div><div className="plan-line"><strong>{taylor ? "Business" : "Pro"}</strong><Badge tone="success">Active</Badge></div><p className="amount-line">${taylor ? "39.00" : "15.00"}<span> / month</span></p><div className="account-card-footer"><span>Monthly billing</span><button onClick={onOpenAccount}>View account <ArrowRight size={12} /></button></div></div>
       <div className="account-card payment-card"><div className="account-card-title"><span className={`context-icon ${taylor ? "icon-peach" : "icon-sage"}`}><CreditCard size={16} /></span><span>LATEST PAYMENT</span></div><div className="payment-amount">${taylor ? "39.00" : "15.00"}<span> USD</span></div><div className="payment-status"><span className={`payment-dot ${taylor ? "payment-failed" : ""}`} />{taylor ? "Failed renewal" : "Successful initial payment"}</div><p className="payment-date">{taylor ? <>Yesterday <span>·</span> Insufficient funds</> : "5 days ago"}</p></div>
-      {taylor && <div className="context-tip"><span className="tip-icon"><CircleHelp size={16} /></span><p><strong>Payment help</strong><br />Check your balance or contact your payment provider. This demo cannot retry payments.</p></div>}
-      <p className="context-footnote"><Info size={14} /> Fictional demo information</p>
+      {taylor && <div className="context-tip"><span className="tip-icon"><CircleHelp size={16} /></span><p><strong>Payment help</strong><br />Check your balance or contact your payment provider. Support cannot retry payments.</p></div>}
+      <p className="context-footnote"><Info size={14} /> Account information</p>
     </aside>
   );
 }
@@ -881,13 +881,13 @@ function KnowledgeWorkspace({
 function AccountPage({ customer, isTaylor, onSwitch }: { customer: Customer; isTaylor: boolean; onSwitch: () => void }) {
   return (
     <div className="account-page">
-      <div className="account-page-heading"><div><h2>Your account</h2><p>Information shown here belongs to your selected demo profile.</p></div><Button variant="secondary" onClick={onSwitch}><UserRound size={15} /> Switch profile</Button></div>
+      <div className="account-page-heading"><div><h2>Your account</h2><p>Information shown here belongs to your selected profile.</p></div><Button variant="secondary" onClick={onSwitch}><UserRound size={15} /> Switch profile</Button></div>
       <div className="account-page-grid">
-        <section className="account-overview-card"><div className="account-overview-header"><Avatar customer={customer} /><div><h3>{customer.display_name}</h3><p>Demo customer · {customer.handle}</p></div><Badge tone="accent">Fictional profile</Badge></div><div className="account-detail-row"><span>Profile type</span><strong>Demo customer</strong></div><div className="account-detail-row"><span>Plan</span><strong>{isTaylor ? "Business" : "Pro"}</strong></div><div className="account-detail-row"><span>Monthly billing</span><strong>${isTaylor ? "39.00" : "15.00"} USD</strong></div><div className="account-detail-row"><span>Subscription status</span><Badge tone="success">Active</Badge></div></section>
-        <section className="account-overview-card payment-overview"><div className="overview-section-title"><span className="context-icon icon-peach"><CreditCard size={17} /></span><div><h3>Latest payment</h3><p>Most recent payment activity</p></div></div><div className="payment-large">${isTaylor ? "39.00" : "15.00"}<small> USD</small></div><Badge tone={isTaylor ? "danger" : "success"}>{isTaylor ? "Failed · Renewal" : "Successful · Initial payment"}</Badge><p className="payment-explainer">{isTaylor ? "Failure reason: insufficient funds. Check with your bank or payment provider. This demo cannot retry the payment." : "A successful initial payment dated five days ago."}</p></section>
-        <section className="account-safety-card"><span className="safety-icon"><Info size={19} /></span><div><h3>About demo accounts</h3><p>These profiles use fictional data. Choosing a different profile clears the current account’s conversations and feedback from this browser view.</p><button onClick={onSwitch}>Choose another profile <ArrowRight size={14} /></button></div></section>
+        <section className="account-overview-card"><div className="account-overview-header"><Avatar customer={customer} /><div><h3>{customer.display_name}</h3><p>Customer · {customer.handle}</p></div></div><div className="account-detail-row"><span>Profile type</span><strong>Customer</strong></div><div className="account-detail-row"><span>Plan</span><strong>{isTaylor ? "Business" : "Pro"}</strong></div><div className="account-detail-row"><span>Monthly billing</span><strong>${isTaylor ? "39.00" : "15.00"} USD</strong></div><div className="account-detail-row"><span>Subscription status</span><Badge tone="success">Active</Badge></div></section>
+        <section className="account-overview-card payment-overview"><div className="overview-section-title"><span className="context-icon icon-peach"><CreditCard size={17} /></span><div><h3>Latest payment</h3><p>Most recent payment activity</p></div></div><div className="payment-large">${isTaylor ? "39.00" : "15.00"}<small> USD</small></div><Badge tone={isTaylor ? "danger" : "success"}>{isTaylor ? "Failed · Renewal" : "Successful · Initial payment"}</Badge><p className="payment-explainer">{isTaylor ? "Failure reason: insufficient funds. Check with your bank or payment provider. Support cannot retry the payment." : "A successful initial payment dated five days ago."}</p></section>
+        <section className="account-safety-card"><span className="safety-icon"><Info size={19} /></span><div><h3>Switching profiles</h3><p>Choosing a different profile clears the current account’s conversations and feedback from this browser view.</p><button onClick={onSwitch}>Choose another profile <ArrowRight size={14} /></button></div></section>
       </div>
-      <div className="account-footer-note"><Info size={14} /> No real payment, password, or personal account data is connected to this demo.</div>
+      <div className="account-footer-note"><Info size={14} /> No real payment, password, or personal account data is connected.</div>
     </div>
   );
 }

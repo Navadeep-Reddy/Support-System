@@ -74,16 +74,16 @@ type TurnResponse = {
 
 `TurnResponse.messages` contains the visible messages belonging to the run, including any previously returned messages for that run with updated card status. The frontend upserts by message ID, not blindly appending. History is the authoritative complete conversation view. `pending_approval` is present only while waiting. An approved but not yet executed card is not a success. A failed run may contain an executed card with a reset result if the mutation succeeded but final language generation failed.
 
-## 3. Demo session
+## 3. Customer session
 
 | Method | Path | Request | Success |
 | --- | --- | --- | --- |
-| GET | `/demo/customers` | None | 200 `{items: Customer[]}` |
-| POST | `/demo/login` | `{customer_id: UUID}` | 200 `Customer`, establishes session |
-| POST | `/demo/logout` | None | 204, clears session |
+| GET | `/customers` | None | 200 `{items: Customer[]}` |
+| POST | `/sessions` | `{customer_id: UUID}` | 200 `Customer`, establishes session |
+| DELETE | `/sessions/current` | None | 204, clears session |
 | GET | `/me` | None | 200 `Customer` |
 
-List exactly the seeded Alex and Taylor profiles, returning only safe display fields. Login validates that the chosen profile exists, replaces any previous session, and does not accept arbitrary profile attributes. The frontend clears cached account/conversation data when switching profiles or logging out. `GET /me` returns 401 without a valid session. This public profile selector is intentionally impersonable in the demo; ownership checks constrain resources within the selected session, not access to the real-world identity of a person.
+List customer profiles, returning only safe display fields. Login validates that the chosen profile exists, replaces any previous session, and does not accept arbitrary profile attributes. The frontend clears cached account/conversation data when switching profiles or logging out. `GET /me` returns 401 without a valid session. This public profile selector is intentionally impersonable in the demo; ownership checks constrain resources within the selected session, not access to the real-world identity of a person.
 
 ## 4. Conversations and history
 
