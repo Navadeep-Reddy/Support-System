@@ -11,14 +11,19 @@ import {
   CircleHelp,
   Clock3,
   CreditCard,
+  Copy,
   FileText,
+  Headset,
+  Info,
+  KeyRound,
   LogOut,
   Menu,
   MessageCircle,
   Plus,
+  PanelTop,
+  Pencil,
   Search,
   Send,
-  ShieldCheck,
   ThumbsDown,
   ThumbsUp,
   Trash2,
@@ -390,7 +395,7 @@ function App() {
             </div>
           </div>
           <div className="topbar-right">
-            {previewMode && <span className="preview-pill"><span /> Local preview · unsaved</span>}
+            {previewMode && <span className="preview-pill"><PanelTop size={14} aria-hidden="true" /> Local preview <span className="preview-divider" /> Unsaved</span>}
             <div className="profile-menu-wrap">
               <button aria-expanded={profileMenuOpen} aria-haspopup="menu" className="topbar-profile" onClick={() => setProfileMenuOpen((open) => !open)} onKeyDown={(event) => { if (event.key === "Escape") setProfileMenuOpen(false); }} title="Profile options">
                 <Avatar customer={customer} size="small" />
@@ -524,7 +529,7 @@ function LoginScreen({
               })}
             </div>
             <Button className="login-submit" onClick={onContinue}>Continue as {demoCustomers.find((profile) => profile.id === selectedProfile)?.display_name.split(" ")[0]} <ArrowRight size={17} /></Button>
-            <div className="login-safety"><ShieldCheck size={15} /><span>No password needed. Demo profiles contain fictional data.</span></div>
+            <div className="login-safety"><Info size={15} /><span>No password needed. Demo profiles contain fictional data.</span></div>
           </div>
           <div className="login-bottom">Customer support <span>·</span> Demo environment</div>
         </section>
@@ -536,7 +541,7 @@ function LoginScreen({
 function BrandMark() {
   return (
     <a className="brand-mark" href="#home" aria-label="Support demo home">
-      <span className="brand-symbol"><span /></span>
+      <span className="brand-symbol"><Headset size={19} strokeWidth={1.8} aria-hidden="true" /></span>
       <span>support<span className="brand-support">customer care</span></span>
     </a>
   );
@@ -575,7 +580,7 @@ function Sidebar({
       </nav>
       <div className="sidebar-bottom">
         <button className="sidebar-help" onClick={onHelp}><span className="help-icon"><CircleHelp size={17} /></span><div><b>Ask for support</b><small>Start a new conversation</small></div><ArrowRight size={15} /></button>
-        <div className="sidebar-bottom-row"><span>Support demo</span><span className="online-dot" aria-label="Preview ready" /></div>
+        <div className="sidebar-bottom-row"><span>Support demo</span><span>Local preview</span></div>
       </div>
     </aside>
   );
@@ -651,10 +656,10 @@ function ChatPanel({
   return (
     <section className="chat-panel" aria-label="Support conversation">
       <div className="chat-heading">
-        <div><h2>{conversationTitle}</h2><p><span className="chat-live-dot" /> Support conversation <span className="dot-separator">·</span> Started today</p></div>
+        <div><h2>{conversationTitle}</h2><p>Support conversation <span className="dot-separator">·</span> Started today</p></div>
         <div className="chat-heading-actions"><Badge tone="neutral">Local session</Badge></div>
       </div>
-      {previewMode && <div className="preview-note"><span className="preview-note-icon"><ShieldCheck size={15} /></span><span><strong>Preview data</strong> — Messages, feedback, and actions stay in this browser. Nothing is sent or saved to the support service.</span></div>}
+      {previewMode && <div className="preview-note"><span className="preview-note-icon"><Info size={16} /></span><span><strong>Preview data</strong> — Messages, feedback, and actions stay in this browser. Nothing is sent or saved to the support service.</span></div>}
       {notice && <div className="inline-notice" role="status">{notice}<button onClick={onDismissNotice} aria-label="Dismiss notice"><X size={15} /></button></div>}
       <div className="message-scroll" ref={messageScrollRef}>
         <div className="conversation-date"><span />{todayLabel()}<span /></div>
@@ -670,7 +675,7 @@ function ChatPanel({
         {messages.length <= 1 && !isTyping && <div className="suggestions"><span>Try asking</span><button onClick={() => onComposerChange("What is my current subscription?")}>What is my current subscription?</button><button onClick={() => onComposerChange("How do I reset my password?")}>How do I reset my password?</button></div>}
       </div>
       <form className="composer-wrap" onSubmit={onSubmit}>
-        {activeApproval && <div className="composer-locked"><ShieldCheck size={14} /> Resolve the pending confirmation above before sending another message.</div>}
+        {activeApproval && <div className="composer-locked"><KeyRound size={14} /> Resolve the pending confirmation above before sending another message.</div>}
         <div className={`composer ${activeApproval ? "composer-disabled" : ""}`}>
           <textarea
             aria-label="Write a message"
@@ -725,7 +730,7 @@ function AssistantMessage({ message, onFeedback }: { message: Message; onFeedbac
           <button className={`feedback-button ${message.feedback?.rating === "positive" ? "feedback-selected" : ""}`} aria-label="This answer was helpful" aria-pressed={message.feedback?.rating === "positive"} onClick={() => { setDraft({ rating: "positive", comment: message.feedback?.comment ?? "" }); setSaved(false); }}><ThumbsUp size={15} /></button>
           <button className={`feedback-button ${message.feedback?.rating === "negative" ? "feedback-selected" : ""}`} aria-label="This answer was not helpful" aria-pressed={message.feedback?.rating === "negative"} onClick={() => { setDraft({ rating: "negative", comment: message.feedback?.comment ?? "" }); setSaved(false); }}><ThumbsDown size={15} /></button>
           <span className="action-spacer" />
-          <button className="text-action" onClick={copyAnswer}>{copied ? <Check size={14} /> : <FileText size={14} />}{copied ? "Copied" : "Copy"}</button>
+          <button className="text-action" onClick={copyAnswer}>{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? "Copied" : "Copy"}</button>
         </div>
         {draft && <form className="feedback-form" onSubmit={(event) => { event.preventDefault(); onFeedback(message.id, draft); setSaved(true); setDraft(null); }}>
           <label htmlFor={`feedback-${message.id}`}>{draft.rating === "positive" ? "What worked well?" : "What could be clearer?"} <span>Optional</span></label>
@@ -767,17 +772,17 @@ function ApprovalCard({
   }
 
   return (
-    <div className="approval-row"><span className="assistant-avatar approval-avatar"><ShieldCheck size={16} /></span>
+    <div className="approval-row"><span className="assistant-avatar approval-avatar"><KeyRound size={16} /></span>
       <section className={`approval-card approval-${approval.status}`} aria-label="Password reset confirmation">
-        <div className="approval-heading"><span className="approval-icon"><ShieldCheck size={17} /></span><div><h3>Confirm password reset</h3><p>Account action · {timeLabel(approval.created_at)}</p></div><Badge tone={approval.status === "pending" ? "warning" : approval.status === "executed" ? "success" : "neutral"}>{statusLabel}</Badge></div>
+        <div className="approval-heading"><span className="approval-icon"><KeyRound size={17} /></span><div><h3>Confirm password reset</h3><p>Account action · {timeLabel(approval.created_at)}</p></div><Badge tone={approval.status === "pending" ? "warning" : approval.status === "executed" ? "success" : "neutral"}>{statusLabel}</Badge></div>
         <p className="approval-explanation">Create a simulated password-reset request for <strong>{approval.account_display_name}</strong>. Your password will not change.</p>
         {approval.status === "pending" && <>
-          <div className="approval-preview-warning"><ShieldCheck size={15} /><span>Preview only · no request is sent or saved.</span></div>
+          <div className="approval-preview-warning"><Info size={15} /><span>Preview only · no request is sent or saved.</span></div>
           <div className="approval-actions"><Button onClick={() => onDecide(messageId, approval, true)}>Confirm</Button><Button variant="secondary" onClick={() => onDecide(messageId, approval, false)}>Cancel</Button></div>
         </>}
         {approval.status === "approved" && <p className="approval-outcome"><CheckCircle2 size={15} /> Approval recorded locally. The operation has not been executed.</p>}
         {approval.status === "rejected" && <p className="approval-outcome"><X size={15} /> No reset request was created in this preview.</p>}
-        {approval.status === "executed" && approval.result && <div className="reset-result"><p><CheckCircle2 size={15} /> Reset request created.</p><span className="simulated-label">SIMULATED · NON-OPERATIONAL LINK</span><div className="link-copy"><code>{approval.result.reset_url}</code><Button variant="secondary" size="sm" onClick={copyLink}>{copied ? <Check size={14} /> : <FileText size={14} />}{copied ? "Copied" : "Copy link"}</Button></div><small>No email was sent and no password changed.</small></div>}
+        {approval.status === "executed" && approval.result && <div className="reset-result"><p><CheckCircle2 size={15} /> Reset request created.</p><span className="simulated-label">SIMULATED · NON-OPERATIONAL LINK</span><div className="link-copy"><code>{approval.result.reset_url}</code><Button variant="secondary" size="sm" onClick={copyLink}>{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? "Copied" : "Copy link"}</Button></div><small>No email was sent and no password changed.</small></div>}
       </section>
     </div>
   );
@@ -792,7 +797,7 @@ function AccountContext({ customer, onOpenAccount }: { customer: Customer; onOpe
       <div className="account-card subscription-card"><div className="account-card-title"><span className="context-icon icon-sage"><BookOpen size={16} /></span><span>SUBSCRIPTION</span></div><div className="plan-line"><strong>{taylor ? "Business" : "Pro"}</strong><Badge tone="success">Active</Badge></div><p className="amount-line">${taylor ? "39.00" : "15.00"}<span> / month</span></p><div className="account-card-footer"><span>Monthly billing</span><button onClick={onOpenAccount}>View account <ArrowRight size={12} /></button></div></div>
       <div className="account-card payment-card"><div className="account-card-title"><span className={`context-icon ${taylor ? "icon-peach" : "icon-sage"}`}><CreditCard size={16} /></span><span>LATEST PAYMENT</span></div><div className="payment-amount">${taylor ? "39.00" : "15.00"}<span> USD</span></div><div className="payment-status"><span className={`payment-dot ${taylor ? "payment-failed" : ""}`} />{taylor ? "Failed renewal" : "Successful initial payment"}</div><p className="payment-date">{taylor ? <>Yesterday <span>·</span> Insufficient funds</> : "5 days ago"}</p></div>
       {taylor && <div className="context-tip"><span className="tip-icon"><CircleHelp size={16} /></span><p><strong>Payment help</strong><br />Check your balance or contact your payment provider. This demo cannot retry payments.</p></div>}
-      <p className="context-footnote"><ShieldCheck size={13} /> Fictional demo information</p>
+      <p className="context-footnote"><Info size={14} /> Fictional demo information</p>
     </aside>
   );
 }
@@ -843,7 +848,7 @@ function KnowledgeWorkspace({
           {articles.map((article) => <button key={article.id} className={`article-list-item ${selectedArticle?.id === article.id && editor === "closed" ? "article-selected" : ""}`} onClick={() => { onSelect(article.id); onEditorClose(); }}><span className="article-icon"><FileText size={16} /></span><span><strong>{article.title}</strong><small>{article.category}</small></span><ArrowRight className="article-list-arrow" size={14} /></button>)}
           {articles.length === 0 && <div className="no-results"><Search size={18} /><span>No articles found.</span></div>}
         </div>
-        <div className="article-rail-note"><ShieldCheck size={15} /> Changes in this preview stay in your browser.</div>
+        <div className="article-rail-note"><Info size={15} /> Changes in this preview stay in your browser.</div>
       </aside>
       <section className="article-detail">
         {notice && <div className="inline-notice article-notice" role="status">{notice}</div>}
@@ -857,7 +862,7 @@ function KnowledgeWorkspace({
           </form>
         ) : selectedArticle ? (
           <article className="article-reading">
-            <div className="article-detail-top"><div className="article-breadcrumb"><span>Knowledge guide</span><ArrowRight size={13} /><span>{selectedArticle.category}</span></div><div className="article-tools"><Button variant="secondary" size="sm" onClick={() => onEdit(selectedArticle)}><FileText size={14} /> Edit</Button><Button variant="quiet" size="icon" aria-label="Delete this article" onClick={() => onRequestDelete(selectedArticle.id)}><Trash2 size={16} /></Button></div></div>
+            <div className="article-detail-top"><div className="article-breadcrumb"><span>Knowledge guide</span><ArrowRight size={13} /><span>{selectedArticle.category}</span></div><div className="article-tools"><Button variant="secondary" size="sm" onClick={() => onEdit(selectedArticle)}><Pencil size={14} /> Edit</Button><Button variant="quiet" size="icon" aria-label="Delete this article" onClick={() => onRequestDelete(selectedArticle.id)}><Trash2 size={16} /></Button></div></div>
             <Badge tone="accent">{selectedArticle.category}</Badge>
             <h2>{selectedArticle.title}</h2>
             <div className="article-meta"><span>Updated {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(selectedArticle.updated_at))}</span><Badge tone="warning">Preview content</Badge></div>
@@ -880,9 +885,9 @@ function AccountPage({ customer, isTaylor, onSwitch }: { customer: Customer; isT
       <div className="account-page-grid">
         <section className="account-overview-card"><div className="account-overview-header"><Avatar customer={customer} /><div><h3>{customer.display_name}</h3><p>Demo customer · {customer.handle}</p></div><Badge tone="accent">Fictional profile</Badge></div><div className="account-detail-row"><span>Profile type</span><strong>Demo customer</strong></div><div className="account-detail-row"><span>Plan</span><strong>{isTaylor ? "Business" : "Pro"}</strong></div><div className="account-detail-row"><span>Monthly billing</span><strong>${isTaylor ? "39.00" : "15.00"} USD</strong></div><div className="account-detail-row"><span>Subscription status</span><Badge tone="success">Active</Badge></div></section>
         <section className="account-overview-card payment-overview"><div className="overview-section-title"><span className="context-icon icon-peach"><CreditCard size={17} /></span><div><h3>Latest payment</h3><p>Most recent payment activity</p></div></div><div className="payment-large">${isTaylor ? "39.00" : "15.00"}<small> USD</small></div><Badge tone={isTaylor ? "danger" : "success"}>{isTaylor ? "Failed · Renewal" : "Successful · Initial payment"}</Badge><p className="payment-explainer">{isTaylor ? "Failure reason: insufficient funds. Check with your bank or payment provider. This demo cannot retry the payment." : "A successful initial payment dated five days ago."}</p></section>
-        <section className="account-safety-card"><span className="safety-icon"><ShieldCheck size={19} /></span><div><h3>About demo accounts</h3><p>These profiles use fictional data. Choosing a different profile clears the current account’s conversations and feedback from this browser view.</p><button onClick={onSwitch}>Choose another profile <ArrowRight size={14} /></button></div></section>
+        <section className="account-safety-card"><span className="safety-icon"><Info size={19} /></span><div><h3>About demo accounts</h3><p>These profiles use fictional data. Choosing a different profile clears the current account’s conversations and feedback from this browser view.</p><button onClick={onSwitch}>Choose another profile <ArrowRight size={14} /></button></div></section>
       </div>
-      <div className="account-footer-note"><ShieldCheck size={14} /> No real payment, password, or personal account data is connected to this demo.</div>
+      <div className="account-footer-note"><Info size={14} /> No real payment, password, or personal account data is connected to this demo.</div>
     </div>
   );
 }
