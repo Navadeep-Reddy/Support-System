@@ -27,7 +27,7 @@ OWN-WORLD: Deep blue navigation, cool pale blue-green grounds, crisp white worki
 
 STORY: The selected demo profile opens a familiar support workspace; the customer reads a grounded answer, checks its cited source, and can decide explicitly on any simulated action.
 
-FIRST VIEWPORT: A deep blue navigation rail identifies the support workspace and active demo customer. A pale history rail and compact account column flank a white central conversation with the preview notice, messages, sources and a clearly framed approval. Lime marks the selected navigation; dark blue marks primary actions. On small screens the navigation becomes a drawer and the conversation remains accessible.
+FIRST VIEWPORT: A deep blue navigation rail identifies the support workspace and active demo customer. A pale history rail and compact account column flank a white central conversation with the preview notice, messages, sources and a clearly framed approval. Amber marks the selected navigation; dark blue marks primary actions. On small screens the navigation becomes a drawer and the conversation remains accessible.
 
 FORM: Community noticeboard, fifth grounded direction, selected from the direction board; seed:2be004312a6ae858.
 

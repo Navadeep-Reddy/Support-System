@@ -67,7 +67,7 @@ A deep blue navigation shell frames cool, pale support surfaces. White conversat
 **Key Characteristics:**
 - Deep blue navigation and primary controls
 - Pale blue-green supporting regions and white reading surfaces
-- Lime selection and clearly labelled approval states
+- Amber selection and clearly labelled approval states
 - Humanist typography and concise, scannable groupings
 
 ## Colors
