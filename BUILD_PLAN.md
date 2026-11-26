@@ -22,11 +22,11 @@ The frontend and backend are separate workstreams and may proceed in parallel on
 
 Depends on S-01, S-02.
 
-- [ ] Initialize Python 3.12/uv project, FastAPI, SQLAlchemy 2.0/Psycopg 3, Pydantic, pgvector, LangGraph, LangGraph PostgreSQL checkpointer, `langchain-nvidia-ai-endpoints`, LangSmith and Pytest.
-- [ ] Create the modular packages: `api`, `agent`, `tools`, `services`, `repositories`, `models`, `schemas`, `core`; add `scripts` and `tests`. Set up explicit dependency injection, database session lifecycle, centralized settings, standard Python logging and safe exception mapping.
-- [ ] Start Docker Compose and verify connectivity and pgvector in both `support_agent` and the separate `support_agent_test` database. Derive the plain checkpointer URI from the SQLAlchemy URL in centralized settings. Keep real credentials on the backend.
-- [ ] Smoke-test NVIDIA NIM at `https://integrate.api.nvidia.com/v1`: ordinary chat and a typed tool call with `nvidia/nemotron-3.5-super-vl-120b-a12b`; document and query embeddings with `nvidia/nemotron-3.5-embed-1b` (the previous Llama Nemotron Embed 1B v2 hosted endpoint is deprecated). Measure and record actual latency for each call; verify vectors have 2,048 finite values and the required query/passage modes. Report access/model incompatibility instead of silently switching models.
-- [ ] Smoke-test a small LangGraph interrupt/resume using PostgreSQL persistence and the same thread ID. Initialize checkpoint tables with the library's `setup()`. For manual Psycopg connections use `autocommit=True` and `row_factory=dict_row`; alternatively use the checkpointer's connection-string helper. If integration is blocked, use the database-backed continuation fallback described in `SPEC.md`; record the actual choice, not both as required implementations.
+- [x] Initialize Python 3.12/uv project, FastAPI, SQLAlchemy 2.0/Psycopg 3, Pydantic, pgvector, LangGraph, LangGraph PostgreSQL checkpointer, `langchain-nvidia-ai-endpoints`, LangSmith and Pytest.
+- [x] Create the modular packages: `api`, `agent`, `tools`, `services`, `repositories`, `models`, `schemas`, `core`; add `scripts` and `tests`. Set up explicit dependency injection, database session lifecycle, centralized settings, standard Python logging and safe exception mapping.
+- [x] Start Docker Compose and verify connectivity and pgvector in both `support_agent` and the separate `support_agent_test` database. Derive the plain checkpointer URI from the SQLAlchemy URL in centralized settings. Keep real credentials on the backend.
+- [x] Smoke-test NVIDIA NIM at `https://integrate.api.nvidia.com/v1`: ordinary chat and a typed tool call with `nvidia/nemotron-3.5-super-vl-120b-a12b`; document and query embeddings with `nvidia/nemotron-3.5-embed-1b` (the previous Llama Nemotron Embed 1B v2 hosted endpoint is deprecated). Measure and record actual latency for each call; verify vectors have 2,048 finite values and the required query/passage modes. Report access/model incompatibility instead of silently switching models.
+- [x] Smoke-test a small LangGraph interrupt/resume using PostgreSQL persistence and the same thread ID. Initialize checkpoint tables with the library's `setup()`. For manual Psycopg connections use `autocommit=True` and `row_factory=dict_row`; alternatively use the checkpointer's connection-string helper. If integration is blocked, use the database-backed continuation fallback described in `SPEC.md`; record the actual choice, not both as required implementations.
 
 **Done when:** the backend starts, connects to PostgreSQL, the selected model/embedding contracts have been tested, and the approval persistence approach has been selected and verified in isolation.
 
@@ -120,11 +120,11 @@ Frontend tasks depend on the contract, not on completed backend code. Use typed 
 
 Depends on S-01, S-02.
 
-- [ ] Initialize React + TypeScript + Vite with npm, Tailwind CSS and shadcn/ui. Set up a simple layout and routes for demo login and chat.
-- [ ] Define shared TypeScript wire types from `API_CONTRACT.md`, including messages, citations, approval cards, feedback, run status, history and errors.
-- [ ] Implement a centralized API client using `VITE_API_BASE_URL`, credentialed requests, JSON parsing, 204 handling and typed error extraction. Use stable IDs for message upserts; no provider credentials in frontend configuration.
+- [x] Initialize React + TypeScript + Vite with npm, Tailwind CSS and shadcn/ui. Set up a simple layout and routes for demo login and chat.
+- [x] Define shared TypeScript wire types from `API_CONTRACT.md`, including messages, citations, approval cards, feedback, run status, history and errors.
+- [x] Implement a centralized API client using `VITE_API_BASE_URL`, credentialed requests, JSON parsing, 204 handling and typed error extraction. Use stable IDs for message upserts; no provider credentials in frontend configuration.
 
-**Done when:** the frontend starts and builds, and API calls/fixtures conform to the shared contract.
+**Done when:** the frontend starts and builds, and API calls/fixtures conform to the shared contract. Verified with `npm run build`; local preview fixtures use UUID-shaped IDs and remain separate from the HTTP client. Live API integration is deferred to the integration workstream.
 
 ### FE-02 — Demo login and session navigation
 
