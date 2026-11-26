@@ -57,11 +57,11 @@ Depends on BE-02.
 
 Depends on BE-01, BE-02; can run alongside BE-03.
 
-- [ ] Implement heading-based Markdown chunking with heading hierarchy, meaningful preamble, unsectioned article support and empty-section removal. Enrich embedding input with title/category/heading/text. Reject oversized sections (working maximum 512 tokens including metadata); no recursive splitting or silent truncation.
-- [ ] Implement NVIDIA embeddings with passage/query modes and dimension validation. Generate embeddings before writing. Article create/update and complete chunk replacement are atomic; delete removes dependent chunks atomically. Failed indexing preserves previous data.
-- [ ] Implement the five knowledge CRUD endpoints and safe validation/errors. Do not expose vectors or an agent KB mutation tool. Access is limited to demo sessions under the documented demo administration assumption.
-- [ ] Seed eight short Markdown articles: plan overview, subscription/billing basics, payment statuses, failed-payment troubleshooting, refund policy, password reset, account access and general support/FAQ. The public refund policy is informational (initial successful payment within 14 days, excluding renewals and already refunded/requested payments); no refund eligibility engine.
-- [ ] Implement exact pgvector cosine search, top K = 3, configurable similarity threshold and source metadata. Choose/document an initial threshold from basic tests on the seed KB. Allow an empty result.
+- [x] Implement heading-based Markdown chunking with heading hierarchy, meaningful preamble, unsectioned article support and empty-section removal. Enrich embedding input with title/category/heading/text. Reject oversized sections using the documented conservative 512-byte limit including metadata; no recursive splitting or silent truncation.
+- [x] Implement NVIDIA embeddings with passage/query modes and dimension validation. Generate embeddings before writing. Article create/update and complete chunk replacement are atomic; delete removes dependent chunks atomically. Failed indexing preserves previous data.
+- [x] Implement the five knowledge CRUD endpoints and safe validation/errors. Do not expose vectors or an agent KB mutation tool. Access is limited to demo sessions under the documented demo administration assumption.
+- [x] Seed eight short Markdown articles: plan overview, subscription/billing basics, payment statuses, failed-payment troubleshooting, refund policy, password reset, account access and general support/FAQ. The public refund policy is informational (initial successful payment within 14 days, excluding renewals and already refunded/requested payments); no refund eligibility engine.
+- [x] Implement exact pgvector cosine search, top K = 3, configurable similarity threshold and source metadata. Choose/document an initial threshold from basic tests on the seed KB. Allow an empty result.
 
 **Done when:** articles can be created, edited and deleted; vectors remain consistent after success and failure; relevant seed queries retrieve identifiable sources.
 
@@ -69,11 +69,12 @@ Depends on BE-01, BE-02; can run alongside BE-03.
 
 Depends on BE-02, BE-03.
 
-- [ ] Implement owned conversation creation, listing and complete chronological history retrieval; use stable message IDs and deterministic ordering. Optionally derive the title from the first message without an LLM call.
-- [ ] Persist user/assistant/action messages, validated citation snapshots and approval card references. Implement `agent_runs` lifecycle (`running`, `waiting_for_approval`, `completed`, `failed`) and unique run/thread IDs.
+- [x] Implement owned conversation creation, listing and complete chronological history retrieval; use stable message IDs and deterministic ordering. Optionally derive the title from the first message without an LLM call.
+- [x] Persist user/assistant/action messages, validated citation snapshots and approval card references. Implement `agent_runs` lifecycle (`running`, `waiting_for_approval`, `completed`, `failed`) and unique run/thread IDs.
 - [ ] Atomically reserve one active run per conversation. Reject concurrent chat submissions while running or waiting; other conversations remain usable. Return complete history, active run and pending approval as contracted.
-- [ ] Before accepting requests at startup, mark leftover `running` runs as `failed`, preserving `waiting_for_approval` runs and committed action outcomes. Run only one backend process against the database; do not replay mutations during recovery. Verify restart after an interrupted run releases the conversation lock.
-- [ ] Implement feedback upsert for an owned assistant message (positive/negative, optional comment); reject foreign or non-assistant messages.
+  - Run reservation and history are verified at the service level; chat endpoint integration is deferred to BE-07.
+- [x] Before accepting requests at startup, mark leftover `running` runs as `failed`, preserving `waiting_for_approval` runs and committed action outcomes. Run only one backend process against the database; do not replay mutations during recovery. Verify restart after an interrupted run releases the conversation lock.
+- [x] Implement feedback upsert for an owned assistant message (positive/negative, optional comment); reject foreign or non-assistant messages.
 
 **Done when:** histories, run statuses and feedback survive reload and are isolated by customer, and a second active turn is rejected.
 
@@ -127,6 +128,8 @@ Depends on S-01, S-02.
 
 **Done when:** the frontend starts and builds, and API calls/fixtures conform to the shared contract. `npm run build` passes; the HTTP client exists and preview fixtures use UUID-shaped IDs. Stable-ID upserts and live API integration remain outstanding.
 
+**Preview progress:** The credentialed client, typed errors and endpoint methods are implemented, but the UI does not use them yet. Stable-ID response upserts remain to be implemented and verified.
+
 ### FE-02 — Demo login and session navigation
 
 Depends on FE-01; live integration needs BE-03.
@@ -136,6 +139,8 @@ Depends on FE-01; live integration needs BE-03.
 - [ ] Protect chat from unauthenticated navigation and handle session-expiry responses. Clearly indicate demo identity.
 
 **Done when:** both profile paths, loading, failure, logout and switch behaviour are implemented and no prior customer's UI state is retained.
+
+**Preview progress:** The profile selector, local profile switching and visible demo identity are in place. Profiles currently come from fixtures; session restoration, endpoint-driven login and session-expiry handling remain outstanding.
 
 ### FE-03 — Conversation sidebar and chat interface
 
@@ -148,6 +153,8 @@ Depends on FE-01, FE-02; live integration needs BE-05, BE-07.
 
 **Done when:** the UI handles all chat response states, history restore and citations without assuming successful execution or fabricating responses.
 
+**Preview progress:** The conversation list, composer, message presentation and source labels are implemented using in-memory fixtures. Answers are explicitly labelled as preview responses. Live requests, server-derived states, persisted history and response upserts remain outstanding.
+
 ### FE-04 — Deterministic password-reset approval card
 
 Depends on FE-03; live integration needs BE-07.
@@ -159,6 +166,8 @@ Depends on FE-03; live integration needs BE-07.
 
 **Done when:** contract-shaped pending data produces an accurate confirmation UI and both decision paths display only the actual returned outcomes.
 
+**Preview progress:** A typed confirmation card displays the selected account and clearly identifies local approvals as unexecuted. The preview decisions are local; backend validation, submission, error handling and restoration remain outstanding.
+
 ### FE-05 — Feedback
 
 Depends on FE-03; live integration needs BE-05.
@@ -168,22 +177,29 @@ Depends on FE-03; live integration needs BE-05.
 
 **Done when:** feedback can be submitted and changed on an assistant response and restored from history.
 
+**Preview progress:** Assistant messages have rating and optional comment controls backed by local preview state. API submission, persistence and error handling remain outstanding.
+
 ### FE-06 — Knowledge management (optional, last priority)
 
 Depends on FE-01, FE-02; live integration needs BE-04.
 
-- [ ] Build a labelled demo KB management page with article list, detail view and create/edit form (title, category, Markdown body).
+- [x] Build a labelled demo KB management page with article list, detail view and create/edit form (title, category, Markdown body).
 - [ ] Implement create, read, update and delete using the five contracted endpoints. Provide clear loading/error states, basic required-field checks, delete confirmation and a safe Markdown preview if used.
 - [ ] Handle indexing and validation failures without displaying unsaved article changes as persisted. Refresh list/detail after successful changes.
 
 **Done when:** all CRUD flows work against contract-shaped data and error/loading states are clear. No separate administration/auth system.
 
+**Preview progress:** Article management uses browser-memory fixtures and labels changes as local. Contracted CRUD, indexing errors and persistence remain outstanding.
+
 ### FE-07 — Frontend quality checks
 
 Depends on FE-01 through FE-05; FE-06 is optional.
 
+- [x] Verify TypeScript checks and production build for the current preview. `npm run build` passes.
 - [ ] Verify TypeScript checks and production build. Ensure the UI has labelled controls, and clearly distinguishes real backend outcomes from simulated reset links.
 - [ ] Check login, chat, citations and feedback loading/error/empty states; check knowledge management only if implemented. Remove unfinished UI, unsupported navigation and fake success paths.
+
+**Preview progress:** Desktop and mobile workspace, knowledge and account renders were inspected during the design pass. A complete interaction and state review and live-integration checks remain outstanding.
 
 **Done when:** the frontend builds successfully and all contracted UI flows are ready for live integration.
 
