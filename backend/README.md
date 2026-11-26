@@ -1,0 +1,7 @@
+# Backend
+
+Python 3.12 backend managed with uv. Copy `.env.example` to `.env` in this directory, set `NVIDIA_API_KEY` and replace `SESSION_SECRET`, then install dependencies with `uv sync`. Start the API with `uv run uvicorn support_agent.main:app --reload --app-dir src`.
+
+The configured NVIDIA embedding model is `nvidia/nemotron-3.5-embed-1b`. Its hosted endpoint requires `input_type="passage"` for indexing and `input_type="query"` for retrieval, and returns native 2,048-dimensional vectors. The embedding service validates vector size and finite values and rejects oversized inputs rather than silently truncating them. Stored vectors must be rebuilt if the embedding model changes. NVIDIA marks the previous `nvidia/llama-nemotron-embed-1b-v2` hosted endpoint deprecated. See the model and API links in the root `SPEC.md`.
+
+The NVIDIA API key is required for real model and embedding calls. LangSmith is optional and disabled by default.
