@@ -60,6 +60,7 @@ Model references: [Nemotron 3.5 Super VL 120B A12B model](https://build.nvidia.c
 | Setting | Value |
 | --- | --- |
 | Conversation history token budget | 8,192 tokens (history only) |
+| Estimated total model context budget | 32,768 tokens, including reserved tool results and output |
 | Retrieval top K | 3 |
 | Similarity | Cosine; exact search |
 | Retrieval relevance threshold | Configurable; select through basic retrieval testing |
@@ -205,7 +206,7 @@ Seed eight short, structured Markdown articles: plan overview, subscription/bill
 ### Indexing
 
 - Store original Markdown and metadata (`title`, `category`, body) in `knowledge_articles`; derived sections and vectors in `knowledge_chunks`.
-- Split by Markdown headings. Preserve heading hierarchy and body text, include a meaningful unheaded preamble if present, ignore empty sections. Use a single chunk for a short unsectioned article. No recursive splitting or overlap. Keep sections short (working maximum 512 tokens including metadata); reject oversized sections with a clear validation error rather than truncating silently.
+- Split by Markdown headings. Preserve heading hierarchy and body text, include a meaningful unheaded preamble if present, ignore empty sections. Use a single chunk for a short unsectioned article. No recursive splitting or overlap. Indexing uses a conservative 512 UTF-8 byte limit including metadata as an upper bound on the 512-token budget; reject oversized sections with a clear validation error rather than truncating silently.
 - For each chunk, construct the embedding text deterministically from article title, category, section heading/path and section text. Store the source text separately for citations. This is metadata enrichment, not LLM-generated contextual retrieval.
 - Embed using the configured NVIDIA model in `passage` mode (`input_type="passage"`). Use `query` mode for search. Verify model/dimensions and avoid silent truncation. Use the SDK's document/query methods or explicitly pass the mode according to its contract.
 - Compute all required embeddings before committing. On create/update, store the article and its complete replacement chunk set in one transaction; on failure leave the previous version intact. Delete article/chunks atomically. No background queue. Use foreign keys and transactional constraints.
@@ -218,7 +219,7 @@ The tool returns compact results with valid source IDs and sufficient evidence. 
 
 ## 9. Conversation context and graph state
 
-Persist full user-visible conversation history in PostgreSQL. For each new turn, construct model context from system instructions, four tool definitions, the current user message and as much recent user-visible history as fits the configurable 8,192-token history budget. Include all prior messages when they fit. When they do not, drop oldest complete groups first; preserve message ordering and do not split a tool call from its result. Use a reasonable tokenizer/estimator and reserve additional capacity for system instructions, tools, current-turn results and model output. Never truncate the current request silently; validate input length. No summarization or separate memory store.
+Persist full user-visible conversation history in PostgreSQL. For each new turn, construct model context from system instructions, four tool definitions, the current user message and as much recent user-visible history as fits the configurable 8,192-token history budget. Include all prior messages when they fit. When they do not, drop oldest complete groups first; preserve message ordering and do not split a tool call from its result. Use a reasonable tokenizer/estimator and reserve additional capacity for system instructions, tools, current-turn results and model output. The default estimated total context budget is 32,768 tokens; it reserves 4,096 for tool results and 1,024 for model output and is configurable for the deployed model endpoint. Never truncate the current request silently; validate input length. No summarization or separate memory store.
 
 Keep current-turn tool calls/results across the loop and approval pause, but do not inject raw intermediate results from earlier completed turns into new context. Retain visible confirmed operation outcomes as conversation history. Refresh changing account facts through tools. Histories and context are scoped to the active customer and conversation.
 

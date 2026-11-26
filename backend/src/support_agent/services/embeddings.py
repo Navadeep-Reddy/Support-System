@@ -1,3 +1,4 @@
+from functools import cached_property
 from math import isfinite
 
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
@@ -11,7 +12,10 @@ class EmbeddingService:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
-        self._client = NVIDIAEmbeddings(
+
+    @cached_property
+    def _client(self) -> NVIDIAEmbeddings:
+        return NVIDIAEmbeddings(
             model=self._settings.embedding_model,
             base_url=self._settings.nvidia_base_url,
             api_key=self._settings.nvidia_api_key.get_secret_value() or None,
@@ -23,6 +27,8 @@ class EmbeddingService:
     @traceable(name="nvidia_embed_passages", run_type="embedding")
     def embed_passages(self, texts: list[str]) -> list[list[float]]:
         vectors = self._client.embed_documents(texts)
+        if len(vectors) != len(texts):
+            raise ValueError("NVIDIA embedding returned an unexpected number of vectors")
         return [self._validate_vector(vector) for vector in vectors]
 
     @traceable(name="nvidia_embed_query", run_type="embedding")

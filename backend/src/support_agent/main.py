@@ -4,15 +4,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
+from support_agent.api.conversations import router as conversation_router
 from support_agent.api.errors import register_exception_handlers
+from support_agent.api.knowledge import router as knowledge_router
 from support_agent.api.sessions import router as session_router
 from support_agent.core.config import get_settings
 from support_agent.core.database import get_engine
 from support_agent.core.logging_config import configure_logging
 from support_agent.core.tracing import configure_langsmith_tracing
+from support_agent.repositories.conversations import recover_running_runs
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +26,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     # LangChain/LangGraph automatically trace supported runs from these variables.
     configure_langsmith_tracing(settings)
-    with get_engine().connect() as connection:
-        connection.execute(text("SELECT 1"))
+    with Session(get_engine()) as session:
+        recovered = recover_running_runs(session)
+        session.commit()
+    logger.info("startup_runs_recovered", extra={"count": recovered})
     logger.info("application_started", extra={"database": "connected"})
     yield
     get_engine().dispose()
@@ -54,6 +59,8 @@ app.add_middleware(
 )
 register_exception_handlers(app)
 app.include_router(session_router)
+app.include_router(knowledge_router)
+app.include_router(conversation_router)
 
 
 @app.get("/health", tags=["health"])

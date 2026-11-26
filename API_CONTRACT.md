@@ -228,7 +228,7 @@ type ArticleSummary = {
 type Article = ArticleSummary & { body: string };
 ```
 
-`body` is Markdown. Title, category and body must be nonblank. Reject sections exceeding the configured heading-based chunk limit, including metadata; do not silently truncate. Render Markdown safely without executing embedded HTML or scripts.
+`body` is Markdown. Title, category and body must be nonblank. Indexing conservatively limits each metadata-enriched section to 512 UTF-8 bytes (at most 512 tokens); it does not silently truncate. Render Markdown safely without executing embedded HTML or scripts.
 
 | Method | Path | Request | Success |
 | --- | --- | --- | --- |

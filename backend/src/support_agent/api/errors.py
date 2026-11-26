@@ -8,6 +8,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from support_agent.agent.context import ContextError
+from support_agent.services.conversations import ConversationError
+from support_agent.services.knowledge import KnowledgeError
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +34,31 @@ def _error_response(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(ContextError)
+    async def handle_context_error(_request: Request, exc: ContextError) -> JSONResponse:
+        return _error_response(422, "VALIDATION_ERROR", str(exc))
+
+    @app.exception_handler(ConversationError)
+    async def handle_conversation_error(_request: Request, exc: ConversationError) -> JSONResponse:
+        status = {
+            "NOT_FOUND": 404,
+            "VALIDATION_ERROR": 422,
+            "RUN_ACTIVE": 409,
+            "RUN_RESOLVED": 409,
+            "APPROVAL_REQUIRED": 409,
+        }.get(exc.code, 500)
+        return _error_response(status, exc.code, str(exc))
+
+    @app.exception_handler(KnowledgeError)
+    async def handle_knowledge_error(_request: Request, exc: KnowledgeError) -> JSONResponse:
+        status = {
+            "NOT_FOUND": 404,
+            "VALIDATION_ERROR": 422,
+            "SECTION_TOO_LARGE": 422,
+            "PROVIDER_UNAVAILABLE": 503,
+        }.get(exc.code, 500)
+        return _error_response(status, exc.code, str(exc), retryable=status == 503)
+
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(
         _request: Request, exc: RequestValidationError
@@ -49,9 +78,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
         # Only expose a handler-provided string for client errors; never leak server details.
         message = (
-            exc.detail
-            if exc.status_code < 500 and isinstance(exc.detail, str)
-            else default_message
+            exc.detail if exc.status_code < 500 and isinstance(exc.detail, str) else default_message
         )
         return _error_response(exc.status_code, code, message)
 

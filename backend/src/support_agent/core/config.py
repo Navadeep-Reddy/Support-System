@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     langsmith_api_key: SecretStr = SecretStr("")
     langsmith_project: str = "aatra-support-agent"
     history_token_budget: int = Field(default=8192, gt=0)
+    model_context_token_budget: int = Field(default=32768, gt=0)
     retrieval_top_k: int = Field(default=3, gt=0)
     retrieval_min_similarity: float = Field(default=0.35, ge=-1, le=1)
     max_retrieval_calls: int = Field(default=3, gt=0)

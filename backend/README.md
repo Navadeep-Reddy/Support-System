@@ -14,7 +14,7 @@ uv run python -m scripts.init_db
 uv run python -m scripts.seed_data
 ```
 
-The seed commands use `DATABASE_URL`; tests use `TEST_DATABASE_URL` only. Knowledge articles and indexed chunks are seeded with the BE-04 indexing path.
+Seed knowledge articles and their embeddings with `uv run python -m scripts.seed_knowledge` (requires `NVIDIA_API_KEY`). Seed commands use `DATABASE_URL`; tests use `TEST_DATABASE_URL` only. Article sections have a conservative 512-byte UTF-8 limit including embedding metadata.
 
 The NVIDIA API key is required for real model and embedding calls. Automatic LangSmith tracing is wired into FastAPI startup: when `LANGSMITH_TRACING=true` and a LangSmith API key is configured, supported LangChain/LangGraph runs are traced without per-call setup. The embedding service is explicitly traced as well. Tracing remains disabled in the example configuration until opted in; enabling it without `LANGSMITH_API_KEY` is a configuration error.
 
@@ -36,6 +36,14 @@ Verified with the configured NVIDIA and LangSmith accounts:
 
 The customer and session endpoints (`GET /customers`, `POST /sessions`, `DELETE /sessions/current`, and `GET /me`) use signed HTTP-only cookies and permit credentialed requests from the configured `FRONTEND_ORIGIN`. Profile selection is not real authentication. Set a unique `SESSION_SECRET` outside source control and enable `SESSION_COOKIE_SECURE` when using HTTPS.
 
-The account service provides customer-scoped subscription and latest-payment projections. Reset preparation creates no reset request; execution requires an approved action owned by the customer and writes the simulated request and approval result in the caller's transaction. The approval API and agent integration are not implemented yet (BE-07).
+Knowledge search uses exact cosine similarity with an initial threshold of 0.35. A real NVIDIA embedding check against the eight seed articles returned the expected refund, failed-payment, password-reset and plan sources; the plan overview scored 0.367, so this threshold remains provisional.
 
-The focused backend suite currently passes 19 tests and Ruff checks pass. These include demo session and account service checks, not the eight application evaluation cases. The observed API timings are a single local smoke run, not performance benchmarks.
+The account service provides customer-scoped subscription and latest-payment projections. Reset preparation creates no reset request; execution requires an approved action owned by the customer and writes the simulated request and approval result in the caller's transaction. The approval API and its decision integration remain for BE-07.
+
+Conversation history, feedback and run reservation are persisted. Startup marks interrupted running turns as failed while preserving waiting approvals and recorded outcomes; run only one backend process against the database. Chat and approval endpoints remain for BE-07.
+
+The bounded LangGraph agent and typed tools are implemented behind `AgentTurns`; the chat and approval HTTP endpoints remain BE-07. `open_agent_turns()` opens an async PostgreSQL checkpointer and should be retained for the application lifespan. The approval endpoint must validate and record a decision, execute an approved reset transactionally, then call `resume` with the monotonic time at which decision processing began. The graph never trusts a resume command as authorization. The estimated model context budget defaults to 32,768 tokens, including a 4,096-token tool-result reserve and 1,024-token output reserve; `MODEL_CONTEXT_TOKEN_BUDGET` can be adjusted for the deployed endpoint.
+
+A real-model internal service check against temporary test-database data selected knowledge retrieval, subscription lookup, and combined payment/knowledge tools, produced valid citations, and paused normal and adversarial reset requests for approval. Run it with `uv run python -m scripts.check_agent`; it uses NVIDIA calls, seeds test-database account fixtures, and removes its own temporary knowledge articles and conversations. It is not an HTTP or browser end-to-end evaluation. Model output remains nondeterministic: successful grounded mixed-query trials were observed, but a later trial also made an unsupported prediction about a future billing attempt despite the prompt. Further evaluation and mitigation are needed in IN-04. If the model omits citation markers after retrieval, the response labels the retrieved chunks as sources consulted; fabricated IDs are discarded. The eight application evaluation cases remain for IN-04.
+
+The focused backend suite currently passes 56 tests and Ruff checks pass. The observed API timings are a single local smoke run, not performance benchmarks.
