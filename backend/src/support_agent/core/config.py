@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     test_database_url: str = "postgresql+psycopg://support:support@localhost:5432/support_agent_test"
     nvidia_api_key: SecretStr = SecretStr("")
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
-    llm_model: str = "nvidia/nemotron-3-super-120b-a12b"
+    llm_model: str = "nvidia/nemotron-3.5-super-vl-120b-a12b"
     embedding_model: str = "nvidia/nemotron-3.5-embed-1b"
     embedding_dimensions: int = Field(default=2048, gt=0)
     session_secret: SecretStr = SecretStr("insecure-local-development-secret-change-me")

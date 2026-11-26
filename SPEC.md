@@ -23,7 +23,7 @@ Refunds are informational only. Subscription and payment tools are read-only. Pa
 | Backend | Python 3.12, FastAPI, uv |
 | AI orchestration | Custom LangGraph `StateGraph` |
 | NVIDIA integration | `langchain-nvidia-ai-endpoints` |
-| Chat model | NVIDIA Nemotron 3 Super (`nvidia/nemotron-3-super-120b-a12b`) |
+| Chat model | NVIDIA Nemotron 3.5 Super VL 120B A12B (`nvidia/nemotron-3.5-super-vl-120b-a12b`) |
 | Embedding model | NVIDIA Nemotron 3.5 Embed 1B (`nvidia/nemotron-3.5-embed-1b`) |
 | Database | Local Docker Compose PostgreSQL with pgvector |
 | Persistence | SQLAlchemy 2.0, Psycopg 3 |
@@ -42,7 +42,7 @@ DATABASE_URL=postgresql+psycopg://support:support@localhost:5432/support_agent
 TEST_DATABASE_URL=postgresql+psycopg://support:support@localhost:5432/support_agent_test
 NVIDIA_API_KEY=
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
-LLM_MODEL=nvidia/nemotron-3-super-120b-a12b
+LLM_MODEL=nvidia/nemotron-3.5-super-vl-120b-a12b
 EMBEDDING_MODEL=nvidia/nemotron-3.5-embed-1b
 EMBEDDING_DIMENSIONS=2048
 LANGSMITH_TRACING=false
@@ -52,7 +52,7 @@ LANGSMITH_PROJECT=aatra-support-agent
 
 Keep configuration centralized; no API keys or real database credentials in frontend code or version control. The example Docker credentials are local demo-only values. Derive the plain `postgresql://` checkpointer URI from the SQLAlchemy `postgresql+psycopg://` URL in settings. LangSmith is optional: with tracing disabled the application runs without a LangSmith key; require a key only when tracing is enabled. Use the available NVIDIA hosted API access. Before integrating the graph, smoke-test a chat call, a typed tool call and both embedding modes using the configured credentials; verify returned vectors contain 2048 finite float values. Model IDs are agreed defaults, not proof of account entitlement. If the selected endpoint is unavailable, report the blocker; an alternative model must be an explicit configuration change, not silent failover. A change to the embedding model or dimensions requires rebuilding the stored embeddings and adapting the column schema if necessary.
 
-Model references: [Nemotron 3 Super](https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b), [Nemotron 3.5 Embed 1B model](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3_5-embed-1b), [embedding API](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3_5-embed-1b-infer). NVIDIA requires `input_type="passage"` when indexing and `input_type="query"` when searching. The hosted API returns native 2,048-dimensional float vectors by default; request 2,048 dimensions explicitly and reject oversized inputs rather than silently truncating. The prior Llama Nemotron Embed 1B v2 hosted endpoint is deprecated. Any embedding-model change requires rebuilding stored vectors; never compare vectors from different models.
+Model references: [Nemotron 3.5 Super VL 120B A12B model](https://build.nvidia.com/nvidia/nemotron-3.5-super-vl-120b-a12b), [chat inference API](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3_5-super-vl-120b-a12b-infer), [Nemotron 3.5 Embed 1B model](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3_5-embed-1b), [embedding API](https://docs.api.nvidia.com/nim/reference/nvidia-nemotron-3_5-embed-1b-infer). NVIDIA documents tool calling for the selected chat model; the backend still validates and executes tools deterministically. NVIDIA requires `input_type="passage"` when indexing and `input_type="query"` when searching. The hosted API returns native 2,048-dimensional float vectors by default; request 2,048 dimensions explicitly and reject oversized inputs rather than silently truncating. The prior Llama Nemotron Embed 1B v2 hosted endpoint is deprecated. Any embedding-model change requires rebuilding stored vectors; never compare vectors from different models.
 
 ### Runtime defaults
 
