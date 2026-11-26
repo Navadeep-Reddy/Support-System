@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-26T00:00:00Z",
+  "title": "Design System: Support demo",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Noticeboard Blue" },
+      "highlight": { "role": "secondary", "displayName": "Noticeboard Lime" },
+      "neutral-bg": { "role": "neutral", "displayName": "Cool Ground" }
+    },
+    "shadows": [{ "name": "soft-panel", "value": "0 5px 18px rgb(32 63 70 / 5%)", "purpose": "Separates the central work surface." }],
+    "breakpoints": [{ "name": "account-collapse", "value": "1260px" }, { "name": "navigation-drawer", "value": "900px" }, { "name": "stacked-workspace", "value": "680px" }]
+  },
+  "components": [
+    { "name": "Primary button", "kind": "button", "refersTo": "button-primary", "description": "A clear primary action.", "html": "<button class=\"ds-primary\">Confirm</button>", "css": ".ds-primary{background:#253e5a;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:600 14px sans-serif}.ds-primary:hover{background:#172c43}.ds-primary:focus-visible{outline:3px solid #758c2c;outline-offset:2px}" },
+    { "name": "Selected navigation", "kind": "nav", "description": "The current workspace destination.", "html": "<button class=\"ds-nav\">Conversations</button>", "css": ".ds-nav{background:#d9e875;color:#253e5a;border:0;border-radius:10px;padding:12px;font:700 13px sans-serif}.ds-nav:focus-visible{outline:3px solid #758c2c;outline-offset:2px}" }
+  ],
+  "narrative": {
+    "northStar": "The Community Noticeboard",
+    "overview": "A deep blue navigation shell frames cool, pale support surfaces. White conversation and reading areas stay visually central; lime highlights the selected destination and lends emphasis to approval states. The result is distinctive but familiar to operate.",
+    "keyCharacteristics": ["Deep blue navigation and primary controls", "Pale blue-green supporting regions and white reading surfaces", "Lime selection and clearly labelled approval states", "Humanist typography and concise, scannable groupings"],
+    "dos": ["Do keep the selected customer, preview status, and conversation easy to identify.", "Do use explicit labels alongside state colors.", "Do preserve readable conversation content and responsive navigation.", "Do distinguish local approvals from executed reset requests."],
+    "donts": ["Don't let supporting regions obscure the conversation.", "Don't present a simulated link as operational or a local approval as an executed action.", "Don't render raw Markdown HTML."]
+  }
+}
