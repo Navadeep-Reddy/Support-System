@@ -8,7 +8,7 @@ This document defines the frontend/backend interface for the scope in `SPEC.md`.
 - JSON request and response bodies use `snake_case`. Requests with a body use `Content-Type: application/json`. IDs are UUID strings. Timestamps are ISO 8601 UTC; money is serialized as a decimal string, e.g. `"15.00"`, with an explicit currency.
 - Non-streaming HTTP. The chat endpoint returns when the graph completes, fails or pauses for approval; no connection remains open awaiting a customer decision.
 - Use a backend-controlled demo session (recommended transport: signed, HTTP-only session cookie). Resolve customer identity on the server for every protected endpoint. Frontend sends credentials on requests; configure CORS for the explicit frontend origin (default `http://localhost:5173`), not a wildcard. Use local HTTP cookie settings in development; use HTTPS and secure cookies in a real deployment. The signing secret stays on the backend. Demo selection is not real authentication; no passwords or registration are required.
-- Only demo customer listing and login are public; logout is safe to repeat. The knowledge management interface is available to demo sessions under the explicit demo administration assumption, not a production RBAC model.
+- Only demo customer listing and login are public; logout is safe to repeat. The knowledge management endpoints are available to demo sessions under the explicit demo administration assumption, not a production RBAC model.
 - Do not accept `customer_id`, `thread_id`, raw graph state or tool execution parameters from the client except the explicit demo profile selection at login. Scope conversations, messages, feedback and approvals to the session owner. Return 404 for a nonexistent or other customer's resource.
 - List endpoints return `{ "items": [...] }`. No pagination is required for the small demo dataset. Reject unknown fields on action decisions and other mutation inputs to avoid accidental privilege-bearing parameters.
 
@@ -116,7 +116,7 @@ Request:
 
 Require a nonblank string within configured input/context limits. Backend validates ownership and atomically reserves the sole active run for this conversation, stores the user message, constructs context according to `SPEC.md`, and invokes the agent using the run ID as LangGraph thread ID. The customer never supplies the run ID. No API endpoint directly exposes the agent's tools.
 
-Return 200 with `TurnResponse` for accepted executions, including a graph-level failed outcome. Use ordinary HTTP errors for requests rejected before a run is accepted (see Section 9).
+Return 200 with `TurnResponse` for accepted executions, including a graph-level failed outcome. A 120-second configurable active-processing deadline applies across initial execution and approval continuation, excluding approval waiting time; deadline expiry returns a truthful `failed` outcome and preserves any committed action result. Use ordinary HTTP errors for requests rejected before a run is accepted (see Section 9).
 
 | Status | Client behaviour |
 | --- | --- |
@@ -248,7 +248,7 @@ Example create/update body:
 }
 ```
 
-Create/update completes only after all required embeddings have been generated and the article/chunks have been committed atomically. Return validation or indexing errors without publishing partial data. Update failure preserves the previous article and chunks. Delete removes the article and chunks atomically. Embeddings and internal chunk indexing are not exposed through public CRUD responses. The frontend can open citation article links using the existing article detail endpoint; if deleted, show the saved citation label with an unavailable-source notice. No direct vector search or embedding endpoint is necessary for the frontend.
+Create/update completes only after all required embeddings have been generated and the article/chunks have been committed atomically. Return validation or indexing errors without publishing partial data. Update failure preserves the previous article and chunks. Delete removes the article and chunks atomically. Embeddings and internal chunk indexing are not exposed through public CRUD responses. The chat frontend shows citation title and section labels only; an article-opening view and deleted-source handling are not required. No direct vector search or embedding endpoint is necessary for the frontend.
 
 ## 9. HTTP error format
 

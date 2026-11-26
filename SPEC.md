@@ -25,7 +25,7 @@ Refunds are informational only. Subscription and payment tools are read-only. Pa
 | NVIDIA integration | `langchain-nvidia-ai-endpoints` |
 | Chat model | NVIDIA Nemotron 3 Super (`nvidia/nemotron-3-super-120b-a12b`) |
 | Embedding model | NVIDIA Llama Nemotron Embed 1B v2 (`nvidia/llama-nemotron-embed-1b-v2`) |
-| Database | Hosted Supabase PostgreSQL |
+| Database | Local Docker Compose PostgreSQL with pgvector |
 | Persistence | SQLAlchemy 2.0, Psycopg 3 |
 | Vector storage | pgvector, `Vector(2048)` |
 | Validation | Pydantic; distinct API/tool schemas and ORM models |
@@ -33,23 +33,24 @@ Refunds are informational only. Subscription and payment tools are read-only. Pa
 | Observability | LangSmith and Python standard `logging` |
 | Tests | Pytest |
 
-Use Supabase as a PostgreSQL host, not as the application's Data API or authentication service. Database setup uses SQLAlchemy `create_all()`, extension initialization and seed scripts. LangGraph initializes its own checkpoint schema.
+Run PostgreSQL and pgvector locally with Docker Compose; no external database account is needed. A separate `support_agent_test` database in the same container is reserved for tests. Docker improves reproducibility; a production deployment would typically use managed PostgreSQL. Database setup uses SQLAlchemy `create_all()`, extension initialization and seed scripts. LangGraph initializes its own checkpoint schema. The container initialization script runs only on first volume creation; `docker compose down -v` deletes both databases and resets the volume.
 
 Provide backend environment configuration and an `.env.example` with placeholders. Required defaults:
 
 ```dotenv
-DATABASE_URL=
+DATABASE_URL=postgresql+psycopg://support:support@localhost:5432/support_agent
+TEST_DATABASE_URL=postgresql+psycopg://support:support@localhost:5432/support_agent_test
 NVIDIA_API_KEY=
 NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
 LLM_MODEL=nvidia/nemotron-3-super-120b-a12b
 EMBEDDING_MODEL=nvidia/llama-nemotron-embed-1b-v2
 EMBEDDING_DIMENSIONS=2048
-LANGSMITH_TRACING=true
+LANGSMITH_TRACING=false
 LANGSMITH_API_KEY=
 LANGSMITH_PROJECT=aatra-support-agent
 ```
 
-Keep configuration centralized; no API keys or database credentials in frontend code or version control. Use the available NVIDIA hosted API access. Before integrating the graph, smoke-test a chat call, a typed tool call and both embedding modes using the configured credentials; verify returned vectors contain 2048 finite float values. Model IDs are agreed defaults, not proof of account entitlement. If the selected endpoint is unavailable, report the blocker; an alternative model must be an explicit configuration change, not silent failover. A change to the embedding model or dimensions requires rebuilding the stored embeddings and adapting the column schema if necessary.
+Keep configuration centralized; no API keys or real database credentials in frontend code or version control. The example Docker credentials are local demo-only values. Derive the plain `postgresql://` checkpointer URI from the SQLAlchemy `postgresql+psycopg://` URL in settings. LangSmith is optional: with tracing disabled the application runs without a LangSmith key; require a key only when tracing is enabled. Use the available NVIDIA hosted API access. Before integrating the graph, smoke-test a chat call, a typed tool call and both embedding modes using the configured credentials; verify returned vectors contain 2048 finite float values. Model IDs are agreed defaults, not proof of account entitlement. If the selected endpoint is unavailable, report the blocker; an alternative model must be an explicit configuration change, not silent failover. A change to the embedding model or dimensions requires rebuilding the stored embeddings and adapting the column schema if necessary.
 
 Model references: [Nemotron 3 Super](https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b), [embedding model](https://docs.api.nvidia.com/nim/reference/nvidia-llama-nemotron-embed-1b-v2), [embedding API](https://docs.api.nvidia.com/nim/reference/nvidia-llama-nemotron-embed-1b-v2-infer).
 
@@ -66,11 +67,12 @@ Model references: [Nemotron 3 Super](https://build.nvidia.com/nvidia/nemotron-3-
 | Maximum tool calls per turn | 6 |
 | Maximum retries for transient provider errors | 2 after the initial attempt |
 | LLM request timeout | 60 seconds per attempt |
+| Active processing deadline per turn | 120 seconds total across initial execution and approval continuation |
 | Consecutive tool failures before stopping | 2 |
 | Concurrent executions per conversation | 1 |
 | Pending approvals per conversation | 1 |
 
-Keep these limits configurable. Count actual provider attempts against the applicable runtime limits; count invalid or rejected tool attempts toward tool-call limits. Approval waiting time is not model processing time. No indefinite agent loops.
+Keep these limits configurable. Count actual provider attempts against the applicable runtime limits; count invalid or rejected tool attempts toward tool-call limits. Approval waiting time is not model processing time; persist the remaining active processing budget across approval pauses. Enforce the deadline around the entire active execution, including retries and tools, not just model calls. On expiry, stop further work, persist a truthful `failed` outcome and any committed operation result, and release the run lock. Do not assume cancellation rolls back a committed operation. No indefinite agent loops.
 
 ## 3. Domain and sample data
 
@@ -104,7 +106,7 @@ Password reset creates a persistent simulated request after confirmation. Return
 - **Demo login:** show two predefined profiles. Selecting a profile establishes a backend-controlled demo session; no real password or signup. Resolve the active identity from the session on each request, not from an arbitrary body parameter. Switching profiles clears the previous account's frontend state.
 - **Chat:** create, list and reopen the current customer's conversations. Display chronological messages, loading/error states, knowledge source references and inline approval cards. Use non-streaming HTTP. Disable new messages in a conversation while a run is active or waiting for approval; other conversations may remain usable.
 - **Feedback:** thumbs up/down with an optional written comment on individual assistant responses; allow the customer to update their feedback. Persist feedback separately.
-- **Knowledge management:** a clearly labelled demo administration page for listing, viewing, creating, editing and deleting Markdown articles. Show validation/indexing errors. No production RBAC; management endpoints are conventional application endpoints, not agent tools. Document the demo access assumption.
+- **Knowledge management:** provide the five CRUD endpoints and Swagger for listing, viewing, creating, editing and deleting Markdown articles, including validation/indexing errors. A labelled demo administration page is optional and last priority. No production RBAC; management endpoints are conventional application endpoints, not agent tools. Document the demo access assumption.
 - Reloading a conversation restores saved messages and pending/resolved confirmation state. Ordinary assistant answers are generated by the LLM; authorization cards are rendered deterministically from validated backend data.
 
 ## 5. Software architecture
@@ -191,7 +193,7 @@ The password-reset tool invokes a backend-controlled prepare/approval path befor
 5. Resume using the same thread ID and the saved decision. On approval, revalidate ownership/state and execute the exact pending action once; on rejection, do not mutate reset business state.
 6. Return the real result to the LLM, which continues the turn and explains the outcome. Persist resolved card state and final messages.
 
-Use LangGraph's PostgreSQL checkpointer against the existing Supabase database and initialize its internal tables using `setup()`. Each new chat turn gets a unique run ID used as its `thread_id`; conversation history is managed separately by application tables. Checkpoints store execution state, not the product's history API. Reuse the same graph configuration/thread ID on resume. The interrupted node may restart from its beginning; never place non-idempotent writes before the interrupt. Keep preparation separate or idempotent. Persist pending action/run status so reloads restore confirmation. Prevent concurrent decisions/runs using database state checks and appropriate transactions/constraints.
+Use LangGraph's PostgreSQL checkpointer against the Docker PostgreSQL database and initialize its internal tables using `setup()`. For manually created Psycopg connections use `autocommit=True` and `row_factory=dict_row`, as required by the [checkpointer documentation](https://reference.langchain.com/python/langgraph.checkpoint.postgres); the connection-string helper configures these options. Each new chat turn gets a unique run ID used as its `thread_id`; conversation history is managed separately by application tables. Checkpoints store execution state, not the product's history API. Reuse the same graph configuration/thread ID on resume. The interrupted node may restart from its beginning; never place non-idempotent writes before the interrupt. Keep preparation separate or idempotent. Persist pending action/run status so reloads restore confirmation. Prevent concurrent decisions/runs using database state checks and appropriate transactions/constraints.
 
 **Fallback:** if PostgreSQL checkpoint integration proves a blocker, retain the same controlled LangGraph agent and approval semantics using database-backed pending actions. Persist the validated action and sufficient current-turn message/tool context to start a continuation invocation after approval/rejection; never repeat the original write proposal automatically or claim exact checkpoint resumption in this mode. Revalidate and execute using the same idempotent service. Both modes must restore pending cards and preserve customer ownership. Document the actual selected implementation in README.
 
@@ -211,7 +213,7 @@ Seed eight short, structured Markdown articles: plan overview, subscription/bill
 
 The agent may formulate a focused search query from the current request and conversation, without a separate rewriting model call. Avoid sending unnecessary account details in search queries. Embed the query, rank stored vectors by exact pgvector cosine distance (`score = 1 - distance`), filter by a configurable minimum cosine similarity and return at most three chunks. Choose an initial threshold with basic tests on the seed KB; document the chosen value. Do not invent relevance or force results when none clear the threshold. No approximate index required (including HNSW/IVFFlat).
 
-The tool returns compact results with valid source IDs and sufficient evidence. Associate citations with chunks actually retrieved in the current execution; validate the assistant's claimed source IDs against those returned and omit fabricated references. If evidence is inadequate, search again within the budget or state uncertainty. Cite article title and section in the UI; support opening the article where practical. Current-turn retrieval results must be available to the model for grounded generation.
+The tool returns compact results with valid source IDs and sufficient evidence. Associate citations with chunks actually retrieved in the current execution; validate the assistant's claimed source IDs against those returned and omit fabricated references. If evidence is inadequate, search again within the budget or state uncertainty. Cite article title and section as labels in the UI; an article-opening view and deleted-source handling are out of scope. Current-turn retrieval results must be available to the model for grounded generation.
 
 ## 9. Conversation context and graph state
 
@@ -239,6 +241,8 @@ Use 12 application tables in the preferred checkpoint architecture. LangGraph ch
 | `feedback` | ID, assistant message FK, customer FK, positive/negative rating, optional comment, timestamps; unique customer/message |
 | `agent_runs` | ID/thread ID, conversation FK, status (`running`, `waiting_for_approval`, `completed`, `failed`), timestamps |
 | `action_approvals` | ID, run FK, action type, immutable validated payload, status, decision time, execution result, timestamps |
+
+Enforce one active run per conversation with a PostgreSQL partial unique index on `agent_runs(conversation_id)` where status is `running` or `waiting_for_approval`; enforce one pending approval per run with a partial unique index on `action_approvals(run_id)` where status is `pending`. Map concurrent constraint conflicts to the existing conflict responses.
 
 Ownership can be derived through foreign keys; avoid duplicating customer identifiers unless useful and enforce consistency if duplicated. Store approval state independently of the reset record. Uniqueness on the reset action FK plus a transaction around operation and execution result provides idempotency for repeated approval of the same action. Separate new reset requests require separate explicit confirmations. `agent_runs` may also hold minimal continuation data if using the fallback.
 
@@ -290,19 +294,20 @@ Chat/approval responses distinguish `completed`, `waiting_for_approval` and `fai
 - Only necessary structured customer data enters the model context; no credentials, secrets, unrelated records or raw ORM objects. Both untrusted messages and retrieved text are data, not trusted instructions. Responses are delivered only to the active customer session.
 - Treat model requests as untrusted proposals. Validate tool names, typed arguments and outputs, and enforce operation approval deterministically. Keep write capability behind the confirmation gate. Chat is itself a communication channel; scope controls mitigate the lethal trifecta risk rather than establish a blanket security guarantee. All demo records are fictional and demo login is not real authentication.
 - Use database transactions for KB index replacement and password reset execution. Persist the reset record and approval execution outcome atomically; ensure concurrent/repeated approval submissions cannot create duplicate records. No elaborate recovery/reconciliation system: log failures, return honest status and permit a new turn after a failed run where safe. Do not blindly rerun non-idempotent work.
+- Run the demo backend as a single process/worker. On startup, before accepting requests, mark leftover `running` runs as `failed`; preserve `waiting_for_approval` runs and any committed action results. This startup sweep assumes no other backend process is executing runs against the same database; multi-worker recovery is out of scope. Never replay a mutation during recovery.
 - Retry only transient provider errors (e.g. timeout, rate limit, temporary server error) within the configured bounds; use simple backoff. Do not retry invalid inputs, ownership violations or normal business rejections. Return structured errors that the agent can interpret. Stop on limits or repeated failures with an honest user-facing fallback. Record successful mutations even if final response generation fails; never claim an operation failed solely because the explanatory model call failed.
 
 ## 13. Observability
 
-Enable LangSmith traces for model calls, tool calls/results, retrieval, graph paths, errors, latency and token usage where reported. Correlate with run/conversation IDs; distinguish execution time from approval waiting time where practical. Use fictional data only and avoid sending credentials or unnecessary fields to traces.
+When explicitly enabled with a key, use LangSmith traces for model calls, tool calls/results, retrieval, graph paths, errors, latency and token usage where reported. Tracing defaults off and must not be required to run the application. Correlate with run/conversation IDs; distinguish execution time from approval waiting time where practical. Use fictional data only and avoid sending credentials or unnecessary fields to traces.
 
 Use standard Python `logging` to stdout with useful event names, severity and contextual IDs. Log application startup, run lifecycle, tool failures/retries, approval outcomes, indexing failures and execution-limit events. Unexpected exceptions are logged server-side, not exposed to customers. No separate structured JSON logging infrastructure or custom monitoring dashboard.
 
 ## 14. Testing and evaluations
 
-Use a small Pytest suite focused on customer ownership, approval enforcement/rejection, duplicate execution, KB create/update/delete consistency (including failed embedding updates), and error handling/limits. Include pause/resume or fallback continuation and feedback/history persistence in integration checks where feasible. Mock model/embedding calls for deterministic tests; use isolated test data and never destructively reset demo records.
+Use a small Pytest suite focused on customer ownership, approval enforcement/rejection, duplicate execution, KB create/update/delete consistency (including failed embedding updates), and error handling/limits. Include pause/resume or fallback continuation and feedback/history persistence in integration checks where feasible. Mock model/embedding calls for deterministic tests; use the separate Docker `support_agent_test` database and never reset or modify the demo database for tests.
 
-Evaluate the real agent with eight documented cases, manually or through a lightweight Python script. Use fresh runs, predictable isolated fictional fixtures and real NVIDIA calls. Approve/reject through the actual approval path; inspect real database outcomes and LangSmith traces. Do not require an exact tool sequence unless necessary for correctness or safety.
+Evaluate the real agent with eight documented cases, manually or through a lightweight Python script. Use fresh runs, predictable isolated fictional fixtures and real NVIDIA calls. Approve/reject through the actual approval path; inspect real database outcomes and, when enabled, LangSmith traces. Do not require an exact tool sequence unless necessary for correctness or safety.
 
 | # | Evaluation | Pass criteria |
 | ---: | --- | --- |
@@ -315,7 +320,7 @@ Evaluate the real agent with eight documented cases, manually or through a light
 | 7 | Prompt injection to bypass approval | No reset request without explicit backend-confirmed approval |
 | 8 | Multi-turn conversation | Correctly interprets a follow-up using prior context and fresh tools where needed |
 
-Use deterministic checks for ownership, state changes and approval timing, and manual review for answer correctness, relevance and grounding. Record pass/fail/not-run and relevant observations in README; report actual outcomes, not invented scores. LangSmith provides trace-based debugging and available latency/token metrics. No statistical consistency metrics, automated judge or separate evaluation platform.
+Use deterministic checks for ownership, state changes and approval timing, and manual review for answer correctness, relevance and grounding. Record pass/fail/not-run and relevant observations in README; report actual outcomes, not invented scores. Run E-01 to E-03 and E-07 three times each using a small loop, recording each trial and its outcome. LangSmith, when enabled, provides trace-based debugging and available latency/token metrics. No automated judge or separate evaluation platform is required.
 
 ## 15. Acceptance criteria and deliverables
 
@@ -325,7 +330,7 @@ Use deterministic checks for ownership, state changes and approval timing, and m
 - [ ] Password reset confirmation is generated by the backend's tool approval path; confirm/reject work and duplicate approval cannot duplicate the request.
 - [ ] Conversation history, pending approvals and feedback persist; the implemented resume mechanism works.
 - [ ] Customer isolation, typed validation, limits and basic errors are handled by code.
-- [ ] LangSmith and standard logs support debugging; focused tests and eight evaluation cases are documented with genuine results.
+- [ ] Optional LangSmith and standard logs support debugging; focused tests and eight evaluation cases are documented with genuine results.
 - [ ] A fresh reviewer can set up the database, seed data and run the frontend/backend from README.
 
-Submit the GitHub repository, README with setup/configuration and demo instructions, API documentation, database schema or ER diagram, architecture diagram, and seed scripts/sample data. A locally runnable application with hosted PostgreSQL is sufficient. Keep diagrams and claims aligned with the actual implemented system.
+Submit the GitHub repository, README with setup/configuration and demo instructions, API documentation, database schema or ER diagram, architecture diagram, and seed scripts/sample data. A locally runnable application using Docker PostgreSQL is sufficient. Keep diagrams and claims aligned with the actual implemented system.
