@@ -17,11 +17,13 @@ function upsertMessages(existing: Message[], incoming: Message[]): Message[] {
 
 export function useSupport() {
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [knowledgeAdmin, setKnowledgeAdmin] = useState(false);
   const [profiles, setProfiles] = useState<Customer[]>([]);
   const [loadingSession, setLoadingSession] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState("");
+  const [creatingConversation, setCreatingConversation] = useState(false);
   const [histories, setHistories] = useState<Record<string, HistoryResponse>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [articles, setArticles] = useState<Article[]>([]);
@@ -38,7 +40,7 @@ export function useSupport() {
     busyIds.current.clear();
     historyVersions.current = {};
     creating.current = null;
-    setCustomer(null); setConversations([]); setActiveId(""); setHistories({}); setBusy({}); setArticles([]); setLoadingArticles(false); setArticleNotice(null); setArticleLoadFailed(false);
+    setCustomer(null); setKnowledgeAdmin(false); setConversations([]); setActiveId(""); setCreatingConversation(false); setHistories({}); setBusy({}); setArticles([]); setLoadingArticles(false); setArticleNotice(null); setArticleLoadFailed(false);
   }, []);
   const handleError = useCallback((error: unknown) => {
     if (error instanceof ApiClientError && error.status === 401) {
@@ -69,10 +71,11 @@ export function useSupport() {
 
   useEffect(() => {
     const generation = epoch.current;
-    void Promise.allSettled([api.customers(), api.me()]).then(async ([list, session]) => {
+    void Promise.allSettled([api.customers(), api.me(), api.knowledgeSession()]).then(async ([list, session, admin]) => {
       if (generation !== epoch.current) return;
       if (list.status === "fulfilled") setProfiles(list.value.items);
       else setNotice(describe(list.reason));
+      if (admin.status === "fulfilled") setKnowledgeAdmin(true);
       if (session.status === "fulfilled") {
         setCustomer(session.value);
         try { await loadConversations(generation); } catch (error) { if (generation === epoch.current) handleError(error); }
@@ -100,6 +103,15 @@ export function useSupport() {
     } catch (error) { if (generation === epoch.current) handleError(error); }
     finally { if (generation === epoch.current) setLoadingSession(false); }
   };
+  const enterKnowledge = async () => {
+    const generation = ++epoch.current;
+    setNotice(null); setLoadingSession(true);
+    try {
+      await api.enterKnowledge();
+      if (generation === epoch.current) setKnowledgeAdmin(true);
+    } catch (error) { if (generation === epoch.current) handleError(error); }
+    finally { if (generation === epoch.current) setLoadingSession(false); }
+  };
   const logout = async () => {
     clearAccount(); setNotice(null); setLoadingSession(true);
     const generation = epoch.current;
@@ -110,12 +122,13 @@ export function useSupport() {
     const generation = epoch.current;
     if (creating.current === generation) return;
     creating.current = generation;
+    setCreatingConversation(true);
     try {
       const created = await api.createConversation();
       if (generation !== epoch.current) return;
       setConversations((items) => [created, ...items]); setActiveId(created.id); setNotice(null);
     } catch (error) { if (generation === epoch.current) handleError(error); }
-    finally { if (creating.current === generation) creating.current = null; }
+    finally { if (creating.current === generation) { creating.current = null; setCreatingConversation(false); } }
   };
   const applyTurn = (turn: TurnResponse) => {
     setHistories((items) => {
@@ -150,7 +163,31 @@ export function useSupport() {
       if (generation === epoch.current) { busyIds.current.delete(id); setBusy((items) => ({ ...items, [id]: false })); }
     }
   };
-  const chat = (message: string) => runMutation(activeId, () => api.chat(activeId, message));
+  const chat = async (message: string): Promise<boolean | null> => {
+    if (activeId) { await runMutation(activeId, () => api.chat(activeId, message)); return true; }
+    const generation = epoch.current;
+    if (creating.current === generation) return null;
+    creating.current = generation;
+    setCreatingConversation(true);
+    let created: Conversation;
+    try {
+      created = await api.createConversation();
+      if (generation !== epoch.current) return null;
+      setConversations((items) => [created, ...items]);
+      setActiveId(created.id);
+      setHistories((items) => ({ ...items, [created.id]: {
+        conversation: created, messages: [], active_run: null, pending_approval: null,
+      } }));
+    } catch (error) {
+      if (generation !== epoch.current) return null;
+      handleError(error);
+      return generation === epoch.current ? false : null;
+    } finally {
+      if (creating.current === generation) { creating.current = null; setCreatingConversation(false); }
+    }
+    await runMutation(created.id, () => api.chat(created.id, message));
+    return true;
+  };
   const decide = (_messageId: string, approval: ApprovalCard, approved: boolean) =>
     runMutation(activeId, () => api.decideApproval(approval.action_id, approved));
   const feedback = async (messageId: string, draft: FeedbackDraft) => {
@@ -182,7 +219,7 @@ export function useSupport() {
     catch (error) { if (generation === epoch.current) { if (error instanceof ApiClientError && error.status === 401) handleError(error); else setArticleNotice(describe(error)); } return false; }
   };
 
-  return { customer, profiles, loadingSession, notice, setNotice, conversations, activeId, setActiveId,
-    history: histories[activeId], busy: !!busy[activeId], login, logout, createConversation, chat, decide, feedback,
+  return { customer, knowledgeAdmin, enterKnowledge, profiles, loadingSession, notice, setNotice, conversations, activeId, setActiveId,
+    history: histories[activeId], busy: creatingConversation || !!busy[activeId], login, logout, createConversation, chat, decide, feedback,
     articles, loadingArticles, articleLoadFailed, articleNotice, setArticleNotice, refreshArticles, saveArticle, deleteArticle };
 }

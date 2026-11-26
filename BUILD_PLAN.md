@@ -13,8 +13,8 @@ The frontend and backend are separate workstreams and may proceed in parallel on
 
 ## 0. Shared setup
 
-- [ ] **S-01 — Establish repository and contracts.** Create `frontend/` and `backend/`, retain the three design documents and this plan, configure `.gitignore`, and agree on the existing API paths, schemas, error codes and enum values. Never commit secrets. **Done when:** both workstreams can use the same contracts without independently inventing fields.
-- [ ] **S-02 — Establish local development configuration.** Backend defaults to `http://localhost:8000`; frontend defaults to `http://localhost:5173`. Provide placeholder environment files and document credential requirements. **Done when:** developers can identify all configuration needed for their workstream.
+- [x] **S-01 — Establish repository and contracts.** Create `frontend/` and `backend/`, retain the three design documents and this plan, configure `.gitignore`, and agree on the existing API paths, schemas, error codes and enum values. Never commit secrets. **Done when:** both workstreams can use the same contracts without independently inventing fields.
+- [x] **S-02 — Establish local development configuration.** Backend defaults to `http://localhost:8000`; frontend defaults to `http://localhost:5173`. Provide placeholder environment files and document credential requirements. **Done when:** developers can identify all configuration needed for their workstream.
 
 ## 1. Backend workstream
 
@@ -40,7 +40,7 @@ Depends on BE-01 (database connection); provider verification may proceed in par
 - [x] Implement initialization (`CREATE EXTENSION` as appropriate, then `create_all()`) and repeatable seed scripts without deleting existing data. Keep library-managed checkpoint tables separate from ORM models.
 - [x] Seed Free ($0), Pro ($15) and Business ($39) monthly plans; Alex (active Pro, successful $15 initial payment) and Taylor (active Business, failed $39 renewal, insufficient funds). Use predictable handles and consistent relative dates.
 
-**Done when:** initialization and seeding can run again without duplication or data loss, both profiles have distinct correct records, and constraints are verifiable.
+**Done when:** initialization and seeding can run again without duplication or data loss, all profiles have distinct correct records, and constraints are verifiable.
 
 ### BE-03 — Customer sessions and deterministic account services
 
@@ -60,7 +60,7 @@ Depends on BE-01, BE-02; can run alongside BE-03.
 - [x] Implement heading-based Markdown chunking with heading hierarchy, meaningful preamble, unsectioned article support and empty-section removal. Enrich embedding input with title/category/heading/text. Reject oversized sections using the documented conservative 512-byte limit including metadata; no recursive splitting or silent truncation.
 - [x] Implement NVIDIA embeddings with passage/query modes and dimension validation. Generate embeddings before writing. Article create/update and complete chunk replacement are atomic; delete removes dependent chunks atomically. Failed indexing preserves previous data.
 - [x] Implement the five knowledge CRUD endpoints and safe validation/errors. Do not expose vectors or an agent KB mutation tool. Access is limited to demo sessions under the documented demo administration assumption.
-- [x] Seed eight short Markdown articles: plan overview, subscription/billing basics, payment statuses, failed-payment troubleshooting, refund policy, password reset, account access and general support/FAQ. The public refund policy is informational (initial successful payment within 14 days, excluding renewals and already refunded/requested payments); no refund eligibility engine.
+- [x] Seed 16 short Markdown articles covering plans, subscription and billing, payments, refunds, password reset, account access and general support. The public refund policy is informational (initial successful payment within 14 days, excluding renewals and already refunded/requested payments); no refund eligibility engine.
 - [x] Implement exact pgvector cosine search, top K = 3, configurable similarity threshold and source metadata. Choose/document an initial threshold from basic tests on the seed KB. Allow an empty result.
 
 **Done when:** articles can be created, edited and deleted; vectors remain consistent after success and failure; relevant seed queries retrieve identifiable sources.
@@ -88,7 +88,7 @@ Depends on BE-03, BE-04, BE-05.
 - [x] Implement configurable execution bounds: 8 LLM calls, 6 tool calls, 3 retrieval calls, 2 consecutive tool failures; count actual attempts. Apply a 60-second LLM timeout per attempt and at most 2 retries after the initial attempt for transient provider errors only, with simple backoff. Enforce a configurable 120-second total active turn deadline across initial execution and continuation, excluding approval waiting time; persist remaining budget across the pause. On expiry stop further work, mark the run `failed`, release the lock and preserve committed outcomes. Preserve enough budget to return a truthful final response or fallback.
 - [x] Validate assistant citation IDs against retrieved chunks from the current run; omit fabricated references. Persist only user-visible messages for future context, retaining current-turn intermediate state for approval continuation.
 
-**Verification:** The graph was exercised with real NVIDIA calls against temporary test-database data: refund retrieval with a valid citation, Alex's subscription, Taylor's failed payment combined with cited KB guidance, and both normal and adversarial reset requests pausing for approval. Focused tests cover limits, ownership, persisted citations, and asynchronous PostgreSQL checkpoint reconnection. These are internal graph/service checks, not HTTP or frontend integration; decision and chat endpoints remain BE-07. Model output is nondeterministic: a later mixed-query trial made an unsupported prediction about a future billing attempt, which remains an evaluation concern for IN-04.
+**Verification:** The graph was exercised with real NVIDIA calls against temporary test-database data: refund retrieval with a valid citation, Alex's subscription, Taylor's failed payment combined with cited KB guidance, and both normal and adversarial reset requests pausing for approval. Focused tests cover limits, ownership, persisted citations, and asynchronous PostgreSQL checkpoint reconnection. These initial checks covered the graph and services; the chat and decision endpoints and their frontend integration were subsequently completed under BE-07 and IN-01–IN-03. Model output is nondeterministic: a later mixed-query trial made an unsupported prediction about a future billing attempt, which remains an evaluation concern for IN-04.
 
 **Done when:** real model calls dynamically select knowledge/read tools, combine payment lookup with KB guidance, return grounded answers and stop safely within limits. Reset requests enter the approval branch rather than directly mutating state.
 
@@ -102,7 +102,7 @@ Depends on BE-05, BE-06 and the persistence choice in BE-01.
 - [x] Revalidate and execute the stored action on approval; record the reset and executed outcome atomically. On rejection, create no reset record and return rejection to the model. Make duplicates safe with unique action constraints and serialized decisions; return existing outcome or clear conflict.
 - [x] Resume LLM processing with the actual typed tool outcome. Persist updated cards and final responses using stable message IDs. If final generation fails after the reset is committed, keep the executed result visible. Ensure reload can restore pending/resolved cards; no advanced crash reconciliation.
 
-**Verification:** HTTP tests cover concurrent requests and decisions, ownership, validation, expiry, committed-result preservation and restart with a persisted pending checkpoint. Browser checks against the real agent and isolated test database restored pending cards, approved and rejected resets, and verified no reset before approval and one afterward. The first real-model approval explanation incorrectly suggested using the simulated link; after prompt changes, subsequent trials described it as non-operational. Model answers remain nondeterministic; the card and persisted result are authoritative.
+**Verification:** HTTP tests cover concurrent requests and decisions, ownership, validation, expiry, cancellation, stalled workers, committed-result preservation, pending-checkpoint restart and restart after a committed decision. Browser checks against the real agent and isolated test database restored pending cards, approved and rejected resets, and verified no reset before approval and one afterward. A stalled decision with an uncertain outcome returns non-retryable 503 `DECISION_PENDING`; the server reconciles it when the worker settles and the client refreshes history. The first real-model approval explanation incorrectly suggested using the simulated link; after prompt changes, subsequent trials described it as non-operational. Model answers remain nondeterministic; the card and persisted result are authoritative.
 
 **Done when:** the real agent pauses, the HTTP request returns, approval/rejection continues the same logical turn, refresh restores pending state, and duplicate submissions cannot create duplicate reset records.
 
@@ -111,9 +111,11 @@ Depends on BE-05, BE-06 and the persistence choice in BE-01.
 Applies throughout backend work; final verification depends on BE-01 through BE-07.
 
 - [x] Make LangSmith tracing optional and disabled by default; the application must run without a LangSmith key. When enabled, trace with run/conversation correlation, model/tool/retrieval events, errors, latency and provider usage when available. Exclude credentials and unnecessary fields from traces. Use standard logging for startup, lifecycle, failures, retries, approvals and indexing errors.
-- [x] Verify all 15 contracted endpoints, typed response models, safe HTTP error envelope, correct status codes and generated `/docs` and `/openapi.json`. Do not expose raw exceptions, SQL, secrets or checkpoints.
+- [x] Verify all 17 contracted endpoints, typed response models, safe HTTP error envelope, correct status codes and generated `/docs` and `/openapi.json`. Do not expose raw exceptions, SQL, secrets or checkpoints.
 - [x] Add focused Pytest tests with mocked providers and isolated fixtures: ownership (including approvals), no mutation before approval or after rejection, duplicate execution, KB update/delete consistency including embedding failure, and error/limit handling. Verify deadline expiry and startup recovery, including preservation of committed results and waiting approvals; test both partial unique indexes under concurrency. Add history/feedback and resume checks where practical. Run tests only against Docker's `support_agent_test` database; never reset or modify the demo database for tests.
 - [x] Run the backend test suite, fix critical failures and record actual results. Keep any known limitation visible in the documentation.
+
+**Latest verification:** 74 backend tests passed against the isolated test database; Ruff, the frontend production build and `git diff --check` passed. NVIDIA's SDK warned that its model registry does not recognize the selected model as tool-capable; real tool calls succeeded in the recorded browser checks. LangGraph emitted a pending-deprecation warning.
 
 **Done when:** backend endpoints are available for integration, logging and optional tracing can diagnose runs, and the critical deterministic tests have been executed.
 
@@ -139,7 +141,7 @@ Depends on FE-01; live integration needs BE-03.
 - [x] Restore current profile via `/me`; support logout and switching profiles. Clear previous conversation/message data and ignore stale requests after a profile switch.
 - [x] Protect chat from unauthenticated navigation and handle session-expiry responses. Clearly indicate demo identity.
 
-**Done when:** both profile paths, loading, failure, logout and switch behaviour are implemented and no prior customer's UI state is retained.
+**Done when:** profile selection, loading, failure, logout and switch behaviour are implemented and no prior customer's UI state is retained.
 
 **Verification:** Browser checks exercised login, reload, logout and switching profiles. A deliberately delayed response from the previous profile was ignored after switching.
 
@@ -265,7 +267,9 @@ Depends on the implemented system and integration results. Prepare documentation
 - [ ] **D-02 — API documentation:** verify FastAPI OpenAPI/Swagger against `API_CONTRACT.md`; reconcile differences with the implementation.
 - [ ] **D-03 — Diagrams:** include the actual architecture diagram and database schema/ER diagram in the repository (Mermaid or equivalent). Reflect the actual checkpoint or fallback continuation architecture.
 - [ ] **D-05 — Repository hygiene:** include seed/init scripts, placeholder env files, dependency manifests/lockfiles, tests and source; check that no API keys, real database credentials or unnecessary generated files are committed; documented local-only Docker demo credentials are permitted.
-- [ ] **D-06 — Reviewer walkthrough:** verify setup from documented instructions, run frontend/backend and demonstrate both profiles, the four assignment scenarios, KB CRUD through Swagger, history, feedback, and approval/rejection. Confirm required files and diagrams are accessible in the GitHub repository.
+- [ ] **D-06 — Reviewer walkthrough:** verify setup from documented instructions, run frontend/backend and demonstrate multiple profiles, the four assignment scenarios, KB CRUD through Swagger, history, feedback, and approval/rejection. Confirm required files and diagrams are accessible in the GitHub repository.
+
+**Current status:** A README, API contract and architecture/ER diagrams exist, and OpenAPI and core flows have been checked. The final documentation reconciliation, repository hygiene review and clean setup/walkthrough have not yet been completed, so these delivery tasks remain open.
 
 **Submission gate:** the repository contains the working application, README, API documentation, schema/ER diagram, architecture diagram and sample data/seed scripts. Any unfinished work or unrun evaluation is clearly identified. Do not require deployment; local execution with Docker PostgreSQL is sufficient.
 

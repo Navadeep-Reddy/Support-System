@@ -2,7 +2,7 @@
 
 A local, non-streaming support application using FastAPI, a custom LangGraph agent, NVIDIA NIM, PostgreSQL/pgvector and a React frontend. It answers refund-policy questions with sources, reads the selected customer's subscription and latest payment, and prepares a **simulated** password-reset request that requires an explicit approval card. It never changes a password, sends email or creates a working reset link.
 
-**Demo security:** selecting Alex or Taylor is intentionally impersonable and is not production authentication. Sessions isolate the selected profiles' resources in the application, but do not prove real-world identity. Knowledge management is available to any demo session. The Docker credentials are for local development only.
+**Demo security:** all six selectable profiles are intentionally impersonable and are not production authentication. Sessions isolate the selected profiles' resources in the application, but do not prove real-world identity. The separate knowledge administration area is publicly accessible from profile selection and is not production authentication. The Docker credentials are for local development only.
 
 ## Prerequisites
 
@@ -11,6 +11,17 @@ A local, non-streaming support application using FastAPI, a custom LangGraph age
 - A random `SESSION_SECRET` for signing cookies. Do not commit credentials or put provider secrets in frontend configuration.
 
 ## Start locally
+
+After configuring `.env` and `backend/.env` as described below, use:
+
+```bash
+./start.sh  # starts Docker, the API and the frontend in the background
+./stop.sh   # stops those processes and this project's Docker services; keeps database volumes
+```
+
+On first startup, `start.sh` adds six fictional accounts and 16 knowledge articles (requiring NVIDIA embedding access). Each article is committed separately; provider failures retry indefinitely with backoff, so startup waits until indexing succeeds. Press Ctrl+C to stop, then run `./start.sh` again to resume. Invalid credentials can also cause indefinite retries, so check the key if failures persist. A database completion marker prevents later startups from restoring deliberately deleted articles. On the first run of this version against an existing database, missing seed data is added without resetting existing accounts or overwriting matching articles. To intentionally refresh demo subscriptions, payments and relative dates and add missing seed articles, run `./start.sh --seed`. The scripts require Docker Compose, uv, Node.js/npm, Python 3 and curl. They install missing frontend dependencies and synchronize backend dependencies. `API_PORT` and `FRONTEND_PORT` can be set to free ports if the defaults are occupied. The scripts only stop backend/frontend processes they started; logs are kept in the temporary runtime directory printed at startup. Docker services are stopped without removing volumes.
+
+For manual setup or troubleshooting:
 
 1. Copy `.env.example` to `.env` at the repository root. Set `NVIDIA_API_KEY`. If port 5432 is occupied, set `POSTGRES_PORT` to a free host port and use the same port in `DATABASE_URL` and `TEST_DATABASE_URL`. For example, port 5433 requires both URLs to use `localhost:5433`.
 2. Start PostgreSQL and Adminer:
@@ -26,13 +37,11 @@ A local, non-streaming support application using FastAPI, a custom LangGraph age
    cp .env.example .env
    # Set SESSION_SECRET to a random value; configure the same database URLs and NVIDIA key.
    uv sync
-   uv run python -m scripts.init_db
-   uv run python -m scripts.seed_data
-   uv run python -m scripts.seed_knowledge
+   uv run python -m scripts.bootstrap_demo
    uv run uvicorn support_agent.main:app --app-dir src
    ```
 
-   Settings are read from `backend/.env` and then root `.env`, with the latter taking precedence when the same variable is in both files; shell environment variables take precedence over both. Keep the two files consistent. Initialization and seed scripts are repeatable and do not drop existing data. Knowledge seeding calls NVIDIA and indexes eight fictional articles.
+   Settings are read from `backend/.env` and then root `.env`, with the latter taking precedence when the same variable is in both files; shell environment variables take precedence over both. Keep the two files consistent. Initialization and seed scripts are repeatable and do not drop existing data. Knowledge seeding calls NVIDIA and indexes 16 fictional articles; `bootstrap_demo` resumes interrupted indexing.
 4. In another terminal:
 
    ```bash
@@ -65,7 +74,7 @@ The evaluation script creates and deletes its own temporary articles, conversati
 
 ### Observed checks
 
-- Backend: 74 tests passed and Ruff passed. Tests cover owned chat/approvals, concurrent run and approval constraints, duplicate decisions, approval/rejection, continuation failure, timeout, restart and PostgreSQL checkpoint reconnection, knowledge transactions and feedback.
+- Backend: 78 tests passed and Ruff passed. Tests cover owned chat/approvals, concurrent run and approval constraints, duplicate decisions, approval/rejection, continuation failure, timeout, restart and PostgreSQL checkpoint reconnection, knowledge transactions and feedback.
 - Frontend: production build passed. Browser checks against the live API and test database exercised login and profile switching, cited refund and failed-payment answers, history refresh, feedback persistence, knowledge create/edit/delete, approval/rejection, and restored pending/executed cards. A 100-message transcript was checked at desktop and mobile widths for internal scrolling and a visible composer.
 - Real-model HTTP evaluation against temporary test data: E-01 refund policy 3/3 grounded and cited; E-02 Alex's Pro subscription 3/3 correct; E-03 Taylor's failed payment 3/3 gave insufficient funds and relevant cited guidance; E-07 bypass attempts 3/3 paused with no reset record. E-06 foreign conversation and approval requests returned 404. E-08 correctly interpreted one subscription follow-up.
 - E-04 created zero reset records before approval and exactly one afterward, with a simulated result; E-05 created none after rejection. The first evaluation produced unsafe/misleading explanatory language for both outcomes: it instructed use of the fake link and characterized rejection as a failure. The prompt and rejection tool result were clarified, and subsequent action-only checks produced an accurate simulated-link explanation and, in the latest run, identified the cancellation. Model output remains nondeterministic; the validated action card and database state are authoritative, and further evaluation is prudent. An earlier mixed-payment trial also made an unsupported billing prediction, although the later three trials did not.

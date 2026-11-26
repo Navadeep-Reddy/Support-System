@@ -14,7 +14,7 @@ uv run python -m scripts.init_db
 uv run python -m scripts.seed_data
 ```
 
-Seed knowledge articles and their embeddings with `uv run python -m scripts.seed_knowledge` (requires `NVIDIA_API_KEY`). Seed commands use `DATABASE_URL`; tests use `TEST_DATABASE_URL` only. Article sections have a conservative 512-byte UTF-8 limit including embedding metadata.
+Alternatively, `uv run python -m scripts.bootstrap_demo` initializes six profiles and 16 articles, retrying provider failures indefinitely and resuming incomplete indexing on the next run. It stores a completion marker in `demo_seed_state` so subsequent starts preserve intentionally deleted articles; `--refresh` refreshes accounts and restores missing seed articles. The older `uv run python -m scripts.seed_knowledge` runs a single transactional seed without retries. Both require `NVIDIA_API_KEY`. Seed commands use `DATABASE_URL`; tests use `TEST_DATABASE_URL` only. Article sections have a conservative 512-byte UTF-8 limit including embedding metadata.
 
 The NVIDIA API key is required for real model and embedding calls. Automatic LangSmith tracing is wired into FastAPI startup: when `LANGSMITH_TRACING=true` and a LangSmith API key is configured, supported LangChain/LangGraph runs are traced without per-call setup. The embedding service is explicitly traced as well. Tracing remains disabled in the example configuration until opted in; enabling it without `LANGSMITH_API_KEY` is a configuration error.
 
@@ -34,7 +34,7 @@ Verified with the configured NVIDIA and LangSmith accounts:
 | FastAPI startup, PostgreSQL startup probe, and `/health` | Passed | — |
 | Safe request-validation and unexpected-error envelopes | Passed | — |
 
-The customer and session endpoints (`GET /customers`, `POST /sessions`, `DELETE /sessions/current`, and `GET /me`) use signed HTTP-only cookies and permit credentialed requests from the configured `FRONTEND_ORIGIN`. Profile selection is not real authentication. Set a unique `SESSION_SECRET` outside source control and enable `SESSION_COOKIE_SECURE` when using HTTPS.
+The customer and session endpoints (`GET /customers`, `POST /sessions`, `DELETE /sessions/current`, and `GET /me`) and the separate knowledge-admin session endpoints (`POST` and `GET /knowledge/session`) use signed HTTP-only cookies and permit credentialed requests from the configured `FRONTEND_ORIGIN`. Both demo entry points are public and are not real authentication. Set a unique `SESSION_SECRET` outside source control and enable `SESSION_COOKIE_SECURE` when using HTTPS.
 
 Knowledge search uses exact cosine similarity with an initial threshold of 0.35. A real NVIDIA embedding check against the eight seed articles returned the expected refund, failed-payment, password-reset and plan sources; the plan overview scored 0.367, so this threshold remains provisional.
 

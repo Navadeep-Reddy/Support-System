@@ -91,6 +91,7 @@ def test_contract_endpoints_are_in_openapi(api):
         "/customers": {"get"},
         "/sessions": {"post"},
         "/sessions/current": {"delete"},
+        "/knowledge/session": {"get", "post"},
         "/me": {"get"},
         "/conversations": {"get", "post"},
         "/conversations/{conversation_id}/messages": {"get"},
@@ -100,7 +101,7 @@ def test_contract_endpoints_are_in_openapi(api):
         "/knowledge/articles": {"get", "post"},
         "/knowledge/articles/{article_id}": {"get", "put", "delete"},
     }
-    assert sum(map(len, endpoints.values())) == 15
+    assert sum(map(len, endpoints.values())) == 17
     for path, methods in endpoints.items():
         assert methods <= paths[path].keys()
     responses = paths["/approvals/{action_id}"]["post"]["responses"]

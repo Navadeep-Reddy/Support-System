@@ -3,15 +3,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response
 
-from support_agent.api.sessions import Database, current_customer
+from support_agent.api.sessions import Database, KnowledgeSession, current_knowledge_admin
 from support_agent.repositories.knowledge import KnowledgeRepository
-from support_agent.schemas.customer import CustomerResponse
 from support_agent.schemas.knowledge import Article, ArticleInput, ArticleList, ArticleSummary
 from support_agent.services.embeddings import EmbeddingService
 from support_agent.services.knowledge import KnowledgeError, KnowledgeService
 
 router = APIRouter(prefix="/knowledge/articles", tags=["knowledge"])
-Customer = Annotated[CustomerResponse, Depends(current_customer)]
+Admin = Annotated[KnowledgeSession, Depends(current_knowledge_admin)]
 
 
 def get_embeddings() -> EmbeddingService:
@@ -22,7 +21,7 @@ def get_embeddings() -> EmbeddingService:
 
 
 @router.get("", response_model=ArticleList)
-def list_articles(db: Database, _customer: Customer) -> ArticleList:
+def list_articles(db: Database, _admin: Admin) -> ArticleList:
     return ArticleList(
         items=[
             ArticleSummary.model_validate(article)
@@ -32,7 +31,7 @@ def list_articles(db: Database, _customer: Customer) -> ArticleList:
 
 
 @router.get("/{article_id}", response_model=Article)
-def get_article(article_id: UUID, db: Database, _customer: Customer) -> Article:
+def get_article(article_id: UUID, db: Database, _admin: Admin) -> Article:
     article = KnowledgeRepository(db).get(article_id)
     if article is None:
         raise KnowledgeError("NOT_FOUND", "The article was not found.")
@@ -43,7 +42,7 @@ def get_article(article_id: UUID, db: Database, _customer: Customer) -> Article:
 def create_article(
     data: ArticleInput,
     db: Database,
-    _customer: Customer,
+    _admin: Admin,
     embeddings: Annotated[EmbeddingService, Depends(get_embeddings)],
 ) -> Article:
     article = KnowledgeService(db, embeddings).save(data)
@@ -56,7 +55,7 @@ def update_article(
     article_id: UUID,
     data: ArticleInput,
     db: Database,
-    _customer: Customer,
+    _admin: Admin,
     embeddings: Annotated[EmbeddingService, Depends(get_embeddings)],
 ) -> Article:
     article = KnowledgeService(db, embeddings).save(data, article_id)
@@ -65,7 +64,7 @@ def update_article(
 
 
 @router.delete("/{article_id}", status_code=204)
-def delete_article(article_id: UUID, db: Database, _customer: Customer) -> Response:
+def delete_article(article_id: UUID, db: Database, _admin: Admin) -> Response:
     article = KnowledgeRepository(db).get(article_id)
     if article is None:
         raise KnowledgeError("NOT_FOUND", "The article was not found.")

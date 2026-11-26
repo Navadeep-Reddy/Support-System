@@ -58,6 +58,8 @@ export const api = {
       body: JSON.stringify({ customer_id }),
     }),
   logout: () => request<void>("/sessions/current", { method: "DELETE" }),
+  enterKnowledge: () => request<{ role: "knowledge_admin" }>("/knowledge/session", { method: "POST" }),
+  knowledgeSession: () => request<{ role: "knowledge_admin" }>("/knowledge/session"),
   me: () => request<Customer>("/me"),
   conversations: async () =>
     request<{ items: Conversation[] }>("/conversations"),

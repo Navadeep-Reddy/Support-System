@@ -554,7 +554,7 @@ input::placeholder, textarea::placeholder { color: #647b7e; }
 .nav-item:hover { background: #36546c; color: #fff; }
 .nav-item.active { color: #253e5a; background: #e8a84a; box-shadow: none; }
 .nav-item.active svg { color: #253e5a; }
-.nav-count { background: #d89030; color: #253e5a; }
+.nav-count { background: #e8a84a; color: #253e5a; }
 .sidebar-help { background: #36546c; border-color: #536f80; color: #fff; }
 .sidebar-help:hover { background: #426179; border-color: #91a9b5; }
 .sidebar-help small, .sidebar-help > svg { color: #d3e0e3; }
@@ -686,6 +686,30 @@ input::placeholder, textarea::placeholder { color: #647b7e; }
 .profile-menu button:hover { background: #edf4f2; color: #172c43; }
 .suggestions button { border-color: #c4d6d2; color: #31536a; font-size: 12px; }
 .suggestions button:hover { border-color: #526a70; color: #172c43; }
+
+/* Account context: make the profile useful without inventing account facts. */
+.account-context { padding: 20px 17px; }
+.context-heading { margin-bottom: 20px; }
+.context-heading h2 { font-size: 14px; }
+.context-demo-label { padding: 4px 8px; border: 1px solid #adc9c2; border-radius: 999px; color: #315a5b; font-size: 10px; font-weight: 800; }
+.context-profile { align-items: center; gap: 11px; margin-bottom: 22px; padding-bottom: 20px; border-color: #c5d9d4; }
+.context-avatar { display: grid; flex: 0 0 42px; height: 42px; place-items: center; border-radius: 12px; background: #253e5a; color: #fff; font-size: 16px; font-weight: 800; }
+.context-profile > div { gap: 3px; min-width: 0; }
+.context-profile strong { color: #1d354d; font-size: 14px; }
+.context-profile small { overflow-wrap: anywhere; color: #526a70; font-size: 11px; }
+.context-questions h3 { margin: 0 0 5px; color: #253e5a; font-size: 12px; font-weight: 800; }
+.context-questions p { margin: 0 0 14px; color: #526a70; font-size: 11px; line-height: 1.5; }
+.context-questions button { display: flex; width: 100%; min-height: 59px; align-items: center; gap: 10px; padding: 9px 4px; border: 0; border-top: 1px solid #c5d9d4; background: transparent; color: #253e5a; text-align: left; cursor: pointer; }
+.context-questions button:last-child { border-bottom: 1px solid #c5d9d4; }
+.context-questions button:hover:not(:disabled) { color: #172c43; background: #d2e5df; }
+.context-questions button:disabled { opacity: .55; cursor: not-allowed; }
+.context-question-icon { display: grid; flex: 0 0 35px; height: 35px; place-items: center; border-radius: 9px; background: #f5faf8; color: #315a5b; }
+.context-questions button > span:nth-child(2) { display: grid; flex: 1; gap: 3px; }
+.context-questions button strong { font-size: 12px; }
+.context-questions button small { color: #526a70; font-size: 10px; }
+.context-arrow { flex-shrink: 0; color: #526a70; }
+.context-footnote { align-items: flex-start; gap: 8px; padding-top: 18px; border-top: 1px solid #c5d9d4; color: #405e60; font-size: 11px; line-height: 1.5; }
+.context-footnote svg { flex-shrink: 0; color: #315a5b; }
 @media (max-width: 680px) {
   .login-shell { min-height: 0; }
   .login-story { min-height: 215px; }
@@ -702,4 +726,43 @@ input::placeholder, textarea::placeholder { color: #647b7e; }
   .approval-heading { flex-wrap: wrap; }
   .approval-heading > div { min-width: 130px; }
   .approval-explanation { font-size: 13px; }
+}
+
+/* Shared knowledge administration and profile selection. */
+.profile-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.profile-option { min-width: 0; padding: 9px; gap: 7px; }
+.profile-avatar { width: 34px; height: 34px; }
+.profile-info { min-width: 0; }
+.profile-info strong, .profile-info small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radio-mark { flex-shrink: 0; }
+.login-knowledge-link { display: flex; align-items: center; gap: 11px; width: 100%; margin-top: 20px; padding: 14px 2px; border: 0; border-top: 1px solid #cfdedb; background: transparent; color: #253e5a; text-align: left; cursor: pointer; }
+.login-knowledge-link > span { display: grid; flex: 1; gap: 2px; }
+.login-knowledge-link strong { font-size: 13px; }
+.login-knowledge-link small { color: #526a70; font-size: 12px; }
+.login-knowledge-link:hover { color: #176d67; }
+.login-knowledge-link:disabled { cursor: wait; opacity: .6; }
+.knowledge-admin-page { display: grid; width: 100%; height: 100dvh; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; padding: 0 28px 24px; background: #edf3f2; }
+.knowledge-admin-header { display: flex; min-height: 90px; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #cfdedb; }
+.knowledge-admin-header h1 { margin: 0; color: #253e5a; font-size: 22px; line-height: 1.2; }
+.knowledge-admin-header p { margin: 5px 0 0; color: #526a70; font-size: 12px; }
+.feedback-form { align-items: flex-start; gap: 10px; padding: 14px; }
+.feedback-form label { font-size: 13px; }
+.feedback-form textarea { flex: 1 0 100%; width: 100%; min-height: 86px; padding: 10px 12px; color: #253e5a; font-size: 14px; line-height: 1.5; resize: vertical; }
+.feedback-form .button { min-height: 38px; }
+
+@keyframes page-arrive { from { opacity: .65; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.login-shell, .app-main, .knowledge-admin-page { animation: page-arrive .36s cubic-bezier(.16, 1, .3, 1); }
+button:not(:disabled) { transition: transform .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease; }
+button:not(:disabled):active { transform: scale(.97); }
+@media (max-width: 680px) {
+  .knowledge-admin-page { padding: 0 12px 12px; }
+  .knowledge-admin-header { min-height: 78px; gap: 8px; }
+  .knowledge-admin-header h1 { font-size: 18px; }
+  .knowledge-admin-header p { font-size: 11px; }
+  .knowledge-admin-header .button { max-width: 145px; white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-shell, .app-main, .knowledge-admin-page { animation: none; }
+  button:not(:disabled) { transition: none; }
+  button:not(:disabled):active { transform: none; }
 }

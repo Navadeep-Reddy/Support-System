@@ -16,7 +16,7 @@ def stable_id(key: str) -> UUID:
     return uuid5(NAMESPACE_URL, f"aatra-support-demo/{key}")
 
 
-def seed_demo_data(engine: Engine | None = None) -> None:
+def seed_demo_data(engine: Engine | None = None, *, refresh_existing: bool = True) -> None:
     engine = engine or get_engine()
     initialize_schema(engine)
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
@@ -40,13 +40,20 @@ def seed_demo_data(engine: Engine | None = None) -> None:
                     monthly_price=price,
                 )
                 session.add(plan)
-            else:
+            elif refresh_existing:
                 plan.name = name
                 plan.monthly_price = price
                 plan.currency = "USD"
             plans_by_code[code] = plan
 
-        customer_seeds = (("alex", "Alex"), ("taylor", "Taylor"))
+        customer_seeds = (
+            ("alex", "Alex"),
+            ("taylor", "Taylor"),
+            ("maya", "Maya"),
+            ("jordan", "Jordan"),
+            ("riley", "Riley"),
+            ("morgan", "Morgan"),
+        )
         for handle, display_name in customer_seeds:
             customer = session.scalar(select(Customer).where(Customer.handle == handle))
             if customer is None:
@@ -60,7 +67,7 @@ def seed_demo_data(engine: Engine | None = None) -> None:
                     display_name=display_name,
                 )
                 session.add(customer)
-            else:
+            elif refresh_existing:
                 customer.handle = handle
                 customer.display_name = display_name
             customers_by_handle[handle] = customer
@@ -68,6 +75,10 @@ def seed_demo_data(engine: Engine | None = None) -> None:
         subscription_seeds = (
             ("alex", "pro"),
             ("taylor", "business"),
+            ("maya", "pro"),
+            ("jordan", "business"),
+            ("riley", "free"),
+            ("morgan", "pro"),
         )
         for handle, plan_code in subscription_seeds:
             customer = customers_by_handle[handle]
@@ -79,6 +90,8 @@ def seed_demo_data(engine: Engine | None = None) -> None:
                     id=stable_id(f"subscription/{handle}"), customer_id=customer.id
                 )
                 session.add(subscription)
+            elif not refresh_existing:
+                continue
             subscription.plan_id = plans_by_code[plan_code].id
             subscription.status = "active"
             subscription.billing_period_start = now - timedelta(days=15)
@@ -103,6 +116,33 @@ def seed_demo_data(engine: Engine | None = None) -> None:
                 "payment_type": "renewal",
                 "failure_reason": "insufficient funds",
             },
+            {
+                "key": "payment/maya-initial",
+                "handle": "maya",
+                "amount": Decimal("15.00"),
+                "occurred_at": now - timedelta(days=3),
+                "status": "successful",
+                "payment_type": "initial",
+                "failure_reason": None,
+            },
+            {
+                "key": "payment/jordan-renewal",
+                "handle": "jordan",
+                "amount": Decimal("39.00"),
+                "occurred_at": now - timedelta(days=2),
+                "status": "failed",
+                "payment_type": "renewal",
+                "failure_reason": "expired card",
+            },
+            {
+                "key": "payment/morgan-renewal",
+                "handle": "morgan",
+                "amount": Decimal("15.00"),
+                "occurred_at": now - timedelta(days=4),
+                "status": "successful",
+                "payment_type": "renewal",
+                "failure_reason": None,
+            },
         )
         for seed in payment_seeds:
             payment_id = stable_id(seed["key"])
@@ -110,6 +150,8 @@ def seed_demo_data(engine: Engine | None = None) -> None:
             if payment is None:
                 payment = Payment(id=payment_id, customer_id=customers_by_handle[seed["handle"]].id)
                 session.add(payment)
+            elif not refresh_existing:
+                continue
             payment.amount = seed["amount"]
             payment.currency = "USD"
             payment.occurred_at = seed["occurred_at"]
@@ -117,7 +159,7 @@ def seed_demo_data(engine: Engine | None = None) -> None:
             payment.payment_type = seed["payment_type"]
             payment.failure_reason = seed["failure_reason"]
 
-    print("Seeded 3 plans, 2 customers, 2 current subscriptions, and 2 sample payments.")
+    print("Seeded 3 plans, 6 customers, 6 subscriptions, and 5 sample payments.")
 
 
 def main() -> None:

@@ -39,7 +39,14 @@ def test_login_switch_logout_and_cookie(client: TestClient) -> None:
     response = client.get("/customers")
     assert response.status_code == 200
     customers = response.json()["items"]
-    assert [customer["handle"] for customer in customers] == ["alex", "taylor"]
+    assert {customer["handle"] for customer in customers} == {
+        "alex",
+        "taylor",
+        "maya",
+        "jordan",
+        "riley",
+        "morgan",
+    }
     response = client.post("/sessions", json={"customer_id": customers[0]["id"]})
     assert response.json() == customers[0]
     assert "httponly" in response.headers["set-cookie"].lower()
@@ -78,14 +85,20 @@ def test_invalid_login_tampered_cookie_and_cors(client: TestClient) -> None:
     assert invalid.status_code == 422
     client.cookies.set(get_settings().session_cookie_name, "invalid.signature")
     assert client.get("/me").status_code == 401
-    response = client.options("/sessions", headers={
-        "Origin": get_settings().frontend_origin,
-        "Access-Control-Request-Method": "POST",
-    })
+    response = client.options(
+        "/sessions",
+        headers={
+            "Origin": get_settings().frontend_origin,
+            "Access-Control-Request-Method": "POST",
+        },
+    )
     assert response.headers["access-control-allow-origin"] == get_settings().frontend_origin
     assert response.headers["access-control-allow-credentials"] == "true"
-    response = client.options("/sessions", headers={
-        "Origin": "http://evil.example",
-        "Access-Control-Request-Method": "POST",
-    })
+    response = client.options(
+        "/sessions",
+        headers={
+            "Origin": "http://evil.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
     assert "access-control-allow-origin" not in response.headers

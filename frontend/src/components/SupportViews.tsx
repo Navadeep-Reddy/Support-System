@@ -38,7 +38,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
 
-type Section = "chat" | "knowledge" | "account";
+type Section = "chat" | "account";
 type FeedbackDraft = { rating: "positive" | "negative"; comment: string };
 
 function timeLabel(value: string) {
@@ -72,6 +72,7 @@ export function LoginScreen({
   selectedProfile,
   onSelect,
   onContinue,
+  onKnowledge,
   profiles = [],
   loading = false,
   notice = null,
@@ -79,6 +80,7 @@ export function LoginScreen({
   selectedProfile: string;
   onSelect: (id: string) => void;
   onContinue: () => void;
+  onKnowledge: () => void;
   profiles?: Customer[];
   loading?: boolean;
   notice?: string | null;
@@ -125,7 +127,7 @@ export function LoginScreen({
                     type="button"
                   >
                     <span className={`profile-avatar ${taylor ? "avatar-lilac" : "avatar-peach"}`}>{profile.display_name.split(" ").map((part) => part[0]).join("")}</span>
-                    <span className="profile-info"><strong>{profile.display_name}</strong><small>Fictional demo profile</small></span>
+                    <span className="profile-info"><strong>{profile.display_name}</strong><small>@{profile.handle}</small></span>
                     <span className="radio-mark">{selected && <span />}</span>
                   </button>
                 );
@@ -133,7 +135,8 @@ export function LoginScreen({
             </div>
             {notice && <p role="alert">{notice}</p>}
             <Button className="login-submit" disabled={loading || !selectedProfile} onClick={onContinue}>{loading ? "Connecting…" : `Continue as ${profiles.find((profile) => profile.id === selectedProfile)?.display_name.split(" ")[0] ?? "profile"}`} <ArrowRight size={17} /></Button>
-            <div className="login-safety"><Info size={15} /><span>Demo only: anyone can select either profile. No real authentication.</span></div>
+            <div className="login-safety"><Info size={15} /><span>Demo only: anyone can select a profile. No real authentication.</span></div>
+            <button className="login-knowledge-link" type="button" disabled={loading} onClick={onKnowledge}><BookOpen size={17} /><span><strong>Manage the knowledge guide</strong><small>Open the separate demo administration area</small></span><ArrowRight size={16} /></button>
           </div>
           <div className="login-bottom">Customer support</div>
         </section>
@@ -179,7 +182,6 @@ export function Sidebar({
       </button>
       <nav aria-label="Main navigation" className="primary-nav">
         <button className={section === "chat" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("chat")}><MessageCircle size={18} /><span>Conversations</span><span className="nav-count">{conversationCount}</span></button>
-        <button className={section === "knowledge" ? "nav-item active" : "nav-item"} onClick={() => onNavigate("knowledge")}><BookOpen size={18} /><span>Knowledge guide</span></button>
       </nav>
       <div className="sidebar-bottom">
         <button className="sidebar-help" onClick={onHelp}><span className="help-icon"><CircleHelp size={17} /></span><div><b>Ask for support</b><small>Start a new conversation</small></div><ArrowRight size={15} /></button>
@@ -216,7 +218,7 @@ export function ConversationRail({
             <span className="conversation-copy"><strong>{conversation.title}</strong><small>{conversationTimeLabel(conversation.updated_at)}</small></span>
           </button>
         ))}
-        {conversations.length === 0 && <div className="no-results"><Search size={18} /><span>No conversations match that search.</span></div>}
+        {conversations.length === 0 && <div className="no-results">{searchText.trim() ? <><Search size={18} /><span>No conversations match that search.</span></> : <><MessageCircle size={18} /><span>Your first conversation will appear here.</span></>}</div>}
       </nav>
       <div className="conversation-rail-foot"><Clock3 size={15} /><span>Your conversations are saved.</span></div>
     </aside>
@@ -284,6 +286,7 @@ export function ChatPanel({
         {activeApproval && <div className="composer-locked"><KeyRound size={14} /> {pendingApproval ? "Resolve the pending confirmation above before sending another message." : "Select a conversation, or wait for the current turn to finish."}</div>}
         <div className={`composer ${activeApproval ? "composer-disabled" : ""}`}>
           <textarea
+            id="support-composer"
             aria-label="Write a message"
             placeholder="Ask a question about your account…"
             value={composer}
@@ -339,7 +342,7 @@ function AssistantMessage({ message, onFeedback }: { message: Message; onFeedbac
         </div>}
         {draft && <form className="feedback-form" onSubmit={(event) => { event.preventDefault(); onFeedback(message.id, draft); setDraft(null); }}>
           <label htmlFor={`feedback-${message.id}`}>{draft.rating === "positive" ? "What worked well?" : "What could be clearer?"} <span>Optional</span></label>
-          <Input id={`feedback-${message.id}`} value={draft.comment} onChange={(event) => setDraft({ ...draft, comment: event.target.value })} placeholder="Add a comment" maxLength={500} />
+          <Textarea id={`feedback-${message.id}`} value={draft.comment} onChange={(event) => setDraft({ ...draft, comment: event.target.value })} placeholder="Add a comment" maxLength={500} rows={3} />
           <Button size="sm" type="submit">Save feedback</Button>
           <Button size="sm" variant="ghost" type="button" onClick={() => setDraft(null)}>Cancel</Button>
         </form>}

@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from support_agent.core.database import get_db_session
@@ -21,6 +22,31 @@ def current_customer(request: Request, db: Database) -> CustomerResponse:
     if customer is None:
         raise HTTPException(status_code=401)
     return CustomerResponse.model_validate(customer)
+
+
+class KnowledgeSession(BaseModel):
+    role: str = "knowledge_admin"
+
+
+def current_knowledge_admin(request: Request) -> KnowledgeSession:
+    if request.session.get("role") != "knowledge_admin":
+        raise HTTPException(status_code=401)
+    return KnowledgeSession()
+
+
+@router.post("/knowledge/session", response_model=KnowledgeSession)
+def knowledge_login(request: Request) -> KnowledgeSession:
+    # This is a public demo role, not production authentication.
+    request.session.clear()
+    request.session["role"] = "knowledge_admin"
+    return KnowledgeSession()
+
+
+@router.get("/knowledge/session", response_model=KnowledgeSession)
+def knowledge_me(
+    admin: Annotated[KnowledgeSession, Depends(current_knowledge_admin)],
+) -> KnowledgeSession:
+    return admin
 
 
 @router.get("/customers", response_model=CustomerList)

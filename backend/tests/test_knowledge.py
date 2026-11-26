@@ -83,6 +83,21 @@ def test_chunking_hierarchy_preamble_and_code_fences() -> None:
     assert split_sections("Plain article")[0].text == "Plain article"
 
 
+def test_knowledge_admin_session_is_separate_from_customer(environment) -> None:
+    client, session, _ = environment
+    assert client.get("/knowledge/session").status_code == 401
+    assert client.post("/knowledge/session").json() == {"role": "knowledge_admin"}
+    assert client.get("/knowledge/session").status_code == 200
+    assert client.get("/conversations").status_code == 401
+    customer = session.scalar(select(Customer).where(Customer.handle == "alex"))
+    client.post("/sessions", json={"customer_id": str(customer.id)})
+    assert client.get("/knowledge/session").status_code == 401
+    assert client.get("/knowledge/articles").status_code == 401
+    assert client.post("/knowledge/session").status_code == 200
+    assert client.delete("/sessions/current").status_code == 204
+    assert client.get("/knowledge/session").status_code == 401
+
+
 def test_crud_auth_indexing_failure_and_search(environment) -> None:
     from support_agent.services.knowledge import KnowledgeService
 
@@ -90,6 +105,9 @@ def test_crud_auth_indexing_failure_and_search(environment) -> None:
     assert client.get("/knowledge/articles").status_code == 401
     customer = session.scalar(select(Customer).where(Customer.handle == "alex"))
     assert client.post("/sessions", json={"customer_id": str(customer.id)}).status_code == 200
+    assert client.get("/knowledge/articles").status_code == 401
+    assert client.post("/knowledge/session").status_code == 200
+    assert client.get("/me").status_code == 401
     payload = {
         "title": f"Test {uuid4()}",
         "category": "billing",
@@ -150,8 +168,7 @@ def test_crud_auth_indexing_failure_and_search(environment) -> None:
 
 def test_database_failure_rolls_back_article_and_chunks(environment) -> None:
     client, session, _ = environment
-    customer = session.scalar(select(Customer).where(Customer.handle == "alex"))
-    client.post("/sessions", json={"customer_id": str(customer.id)})
+    client.post("/knowledge/session")
     payload = {"title": f"Test {uuid4()}", "category": "billing", "body": "## Old\nOriginal"}
     response = client.post("/knowledge/articles", json=payload)
     article_id = response.json()["id"]
@@ -176,8 +193,7 @@ def test_database_failure_rolls_back_article_and_chunks(environment) -> None:
 
 def test_database_failure_rolls_back_delete(environment) -> None:
     client, session, _ = environment
-    customer = session.scalar(select(Customer).where(Customer.handle == "alex"))
-    client.post("/sessions", json={"customer_id": str(customer.id)})
+    client.post("/knowledge/session")
     payload = {"title": f"Test {uuid4()}", "category": "billing", "body": "## Old\nOriginal"}
     article_id = client.post("/knowledge/articles", json=payload).json()["id"]
     connection = session.connection()
@@ -197,9 +213,8 @@ def test_database_failure_rolls_back_delete(environment) -> None:
 
 
 def test_missing_article_checked_before_provider_initialization(environment, monkeypatch) -> None:
-    client, session, _ = environment
-    customer = session.scalar(select(Customer).where(Customer.handle == "alex"))
-    client.post("/sessions", json={"customer_id": str(customer.id)})
+    client, _, _ = environment
+    client.post("/knowledge/session")
 
     def unavailable(**_kwargs):
         raise RuntimeError("provider unavailable")
@@ -212,9 +227,8 @@ def test_missing_article_checked_before_provider_initialization(environment, mon
 
 
 def test_large_and_invalid_article_rejected(environment) -> None:
-    client, session, _ = environment
-    customer = session.scalar(select(Customer).where(Customer.handle == "alex"))
-    client.post("/sessions", json={"customer_id": str(customer.id)})
+    client, _, _ = environment
+    client.post("/knowledge/session")
     response = client.post(
         "/knowledge/articles", json={"title": "Title", "category": "x", "body": "a" * 600}
     )

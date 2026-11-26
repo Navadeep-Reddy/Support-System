@@ -8,7 +8,7 @@ This document defines the frontend/backend interface for the scope in `SPEC.md`.
 - JSON request and response bodies use `snake_case`. Requests with a body use `Content-Type: application/json`. IDs are UUID strings. Timestamps are ISO 8601 UTC; money is serialized as a decimal string, e.g. `"15.00"`, with an explicit currency.
 - Non-streaming HTTP. The chat endpoint returns when the graph completes, fails or pauses for approval; no connection remains open awaiting a customer decision.
 - Use a backend-controlled demo session (recommended transport: signed, HTTP-only session cookie). Resolve customer identity on the server for every protected endpoint. Frontend sends credentials on requests; configure CORS for the explicit frontend origin (default `http://localhost:5173`), not a wildcard. Use local HTTP cookie settings in development; use HTTPS and secure cookies in a real deployment. The signing secret stays on the backend. Demo selection is not real authentication; no passwords or registration are required.
-- Only demo customer listing and login are public; logout is safe to repeat. The knowledge management endpoints are available to demo sessions under the explicit demo administration assumption, not a production RBAC model.
+- Customer listing, customer login and entry to the separate knowledge-admin demo session are public; logout is safe to repeat. Knowledge management requires that demo-admin session, not a customer session. Anyone can enter it: it is not production authentication or RBAC.
 - Do not accept `customer_id`, `thread_id`, raw graph state or tool execution parameters from the client except the explicit demo profile selection at login. Scope conversations, messages, feedback and approvals to the session owner. Return 404 for a nonexistent or other customer's resource.
 - List endpoints return `{ "items": [...] }`. No pagination is required for the small demo dataset. Reject unknown fields on action decisions and other mutation inputs to avoid accidental privilege-bearing parameters.
 
@@ -82,6 +82,8 @@ type TurnResponse = {
 | POST | `/sessions` | `{customer_id: UUID}` | 200 `Customer`, establishes session |
 | DELETE | `/sessions/current` | None | 204, clears session |
 | GET | `/me` | None | 200 `Customer` |
+| POST | `/knowledge/session` | None | 200 `{role: "knowledge_admin"}`, replaces the current session |
+| GET | `/knowledge/session` | None | 200 `{role: "knowledge_admin"}` or 401 |
 
 List customer profiles, returning only safe display fields. Login validates that the chosen profile exists, replaces any previous session, and does not accept arbitrary profile attributes. The frontend clears cached account/conversation data when switching profiles or logging out. `GET /me` returns 401 without a valid session. This public profile selector is intentionally impersonable in the demo; ownership checks constrain resources within the selected session, not access to the real-world identity of a person.
 
@@ -228,6 +230,8 @@ type ArticleSummary = {
 };
 type Article = ArticleSummary & { body: string };
 ```
+
+These endpoints require the separate public demo knowledge-admin session; a customer session alone returns 401. The admin session cannot access customer-scoped endpoints. This separation organizes the demo UI and is not a security boundary against a user who can enter the public admin area.
 
 `body` is Markdown. Title, category and body must be nonblank. Indexing conservatively limits each metadata-enriched section to 512 UTF-8 bytes (at most 512 tokens); it does not silently truncate. Render Markdown safely without executing embedded HTML or scripts.
 

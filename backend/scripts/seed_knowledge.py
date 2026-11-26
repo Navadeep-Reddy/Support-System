@@ -57,6 +57,37 @@ ARTICLES = (
         "## Getting help\nAsk support about plans, billing, payment status, refunds, and "
         "account access. Support cannot change your plan or payment method.",
     ),
+    ("Free plan", "plans", "## Monthly price\nThe Free plan costs $0 per month."),
+    ("Pro plan", "plans", "## Monthly price\nThe Pro plan costs $15 per month."),
+    ("Business plan", "plans", "## Monthly price\nThe Business plan costs $39 per month."),
+    (
+        "Billing period",
+        "billing",
+        "## Current period\nAsk support for your current subscription billing period.",
+    ),
+    (
+        "Latest payment",
+        "billing",
+        "## Payment information\nSupport can look up the latest payment and its recorded status.",
+    ),
+    (
+        "Renewal payments",
+        "billing",
+        "## Renewals\nSubscriptions are billed monthly. "
+        "Renewal payments are excluded from the demo refund policy.",
+    ),
+    (
+        "Refund request status",
+        "billing",
+        "## Existing requests\nPayments already refunded or with a refund requested "
+        "are excluded from the demo refund policy.",
+    ),
+    (
+        "Demo account safety",
+        "account",
+        "## Simulated actions\nThe demo reset link is non-operational. "
+        "No password is changed and no email is sent.",
+    ),
 )
 
 
